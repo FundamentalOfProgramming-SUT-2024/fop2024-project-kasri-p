@@ -1,0 +1,7 @@
+hedi 1
+kasra 5
+asghar 2
+hossein 3
+ali 4
+kamyar 5 
+guest 0
