@@ -6,6 +6,9 @@
 
 #define MIN_ROOM_SIZE 10
 #define MAX_ROOM_SIZE 10
+#define MAX_PROJECTILES 20
+#define FINAL_ROOM_ENEMIES 10
+#define MAX_ENEMIES_PER_FLOOR 10
 
 char **discovered_map;
 int current_floor = 0;
@@ -22,15 +25,13 @@ int frost = 0;
 int hero_y, hero_x;
 
 
-#define MAX_PROJECTILES 20
-
-typedef struct {
+typedef struct
+{
     int x;
     int y;
     bool dropped;
     char weapon_char;
 } Weapon;
-
 
 struct Enemy;
 typedef void (*EnemyAbility)(struct Enemy *);
@@ -44,9 +45,12 @@ typedef struct Enemy
     int damage;
     bool active;
     EnemyAbility special_ability;
-    int moves_made; 
-    bool can_move; 
+    int moves_made;
+    bool can_move;
 } Enemy;
+
+Enemy *enemies[5][MAX_ENEMIES_PER_FLOOR];
+int enemy_counts[5];
 
 int current_hero_color = 1;
 char **map;
@@ -132,36 +136,6 @@ typedef struct
 } Floor;
 Floor floors[4];
 
-#define MAX_ENEMIES_PER_FLOOR 20
-Enemy *enemies[4][MAX_ENEMIES_PER_FLOOR];
-int enemy_counts[4];
-
-void dragon_ability(Enemy *e)
-{
-    for (int dx = -1; dx <= 1; dx++)
-    {
-        for (int dy = -1; dy <= 1; dy++)
-        {
-            if (map[e->y + dy][e->x + dx] == '@')
-            {
-                health -= 15;
-                mvprintw(0, 2, "Dragon breath! -15 HP");
-                refresh();
-            }
-        }
-    }
-}
-
-void frost_giant_ability(Enemy *e)
-{
-    if (abs(e->x - hero_x) <= 2 && abs(e->y - hero_y) <= 2)
-    {
-        init_pair(12, 23, COLOR_BLACK);
-        attron(COLOR_PAIR(12));
-        mvprintw(0, 2, "Frozen! Movement reduced");
-        refresh();
-    }
-}
 
 void ghost_ability(Enemy *e)
 {
@@ -170,28 +144,10 @@ void ghost_ability(Enemy *e)
 
     if (new_x > 0 && new_x < WIDTH - 1 && new_y > 0 && new_y < HEIGHT - 1)
     {
-        map[e->y][e->x] = temp_map[e->y][e->x]; 
+        map[e->y][e->x] = temp_map[e->y][e->x];
         e->x = new_x;
         e->y = new_y;
-        map[e->y][e->x] = 'g'; 
-    }
-
-    if (rand() % 100 < 20)
-    {
-        map[e->y][e->x] = '.';
-        refresh();
-        napms(500);
         map[e->y][e->x] = 'g';
-    }
-}
-
-void serpent_ability(Enemy *e)
-{
-    if (abs(e->x - hero_x) <= 1 && abs(e->y - hero_y) <= 1)
-    {
-        health -= 5;
-        mvprintw(0, 2, "Poisoned! -5 HP");
-        refresh();
     }
 }
 
@@ -199,15 +155,16 @@ void undead_ability(Enemy *e)
 {
     if (e->health <= 0 && rand() % 100 < 30)
     {
-        e->health = 50;
+        e->health = 30;
+        e->active = true;
         mvprintw(0, 2, "Undead rises again!");
         refresh();
     }
 }
 void initialize_enemies()
 {
-    for (int f = 0; f < 4; f++)
-    {
+    for (int f = 0; f < 5; f++)
+    { // Include the final floor (index 4)
         for (int i = 0; i < enemy_counts[f]; i++)
         {
             if (enemies[f][i] != NULL)
@@ -221,28 +178,21 @@ void initialize_enemies()
 
     for (int floor = 0; floor < 4; floor++)
     {
-        int num_enemies = (floor + 1) * 3 + (rand() % 3);
-        if (num_enemies > MAX_ENEMIES_PER_FLOOR)
-        {
-            num_enemies = MAX_ENEMIES_PER_FLOOR;
-        }
+        int enemies_placed = 0;
+        enemy_counts[floor] = 0;
 
-        enemy_counts[floor] = num_enemies;
-
-        for (int i = 0; i < num_enemies; i++)
+        for (int room = 0; room < floors[floor].num_rooms; room++)
         {
-            enemies[floor][i] = (Enemy *)malloc(sizeof(Enemy));
-            if (enemies[floor][i] == NULL)
+            Enemy *e = (Enemy *)malloc(sizeof(Enemy));
+            if (e == NULL)
             {
                 mvprintw(0, 0, "Failed to allocate memory for enemy");
                 refresh();
                 return;
             }
 
-            Enemy *e = enemies[floor][i];
-
             e->moves_made = 0;
-            e->can_move = true;
+            e->can_move = true; 
             e->active = true;
             e->x = 0;
             e->y = 0;
@@ -254,25 +204,21 @@ void initialize_enemies()
                 e->symbol = 'D';
                 e->damage = 2;
                 e->health = 5;
-                e->special_ability = dragon_ability;
                 break;
             case 1:
                 e->symbol = 'F';
                 e->damage = 4;
                 e->health = 10;
-                e->special_ability = frost_giant_ability;
                 break;
             case 2:
                 e->symbol = 'G';
                 e->damage = 5;
                 e->health = 15;
-                e->special_ability = ghost_ability;
                 break;
             case 3:
                 e->symbol = 'S';
                 e->damage = 6;
                 e->health = 20;
-                e->special_ability = serpent_ability;
                 break;
             case 4:
                 e->symbol = 'U';
@@ -280,18 +226,8 @@ void initialize_enemies()
                 e->health = 30;
                 e->special_ability = undead_ability;
                 break;
-            case 5: // ghost
-                e->symbol = 'g';
-                e->damage = 3;
-                e->health = 10;
-                e->special_ability = ghost_ability;
-            case 6:
-                e->symbol = 'R';
-                e-> damage = 10;
-                e-> health = 100;
             }
 
-            int room = rand() % floors[floor].num_rooms;
             Room *r = &floors[floor].rooms[room];
 
             int max_attempts = 100;
@@ -317,12 +253,103 @@ void initialize_enemies()
             if (!position_found)
             {
                 e->active = false;
-                mvprintw(0, 0, "Warning: Could not place enemy %d on floor %d", i, floor);
+                free(e);
+                mvprintw(0, 0, "Warning: Could not place enemy in room %d on floor %d", room, floor);
                 refresh();
+                continue;
             }
+
+            enemies[floor][enemies_placed] = e;
+            enemies_placed++;
+            enemy_counts[floor]++;
+        }
+
+        // Add additional enemies up to MAX_ENEMIES_PER_FLOOR
+        int additional_enemies = (floor + 1) * 2; // Scaling difficulty by floor
+        for (int i = 0; i < additional_enemies && enemy_counts[floor] < MAX_ENEMIES_PER_FLOOR; i++)
+        {
+            Enemy *e = (Enemy *)malloc(sizeof(Enemy));
+            if (e == NULL)
+                continue;
+
+            // Initialize similar to above but place in random rooms
+            e->moves_made = 0;
+            e->can_move = true;
+            e->active = true;
+
+            // Random enemy type (same as above)
+            int type = rand() % 5;
+            // ... (same enemy type initialization as above)
+            switch (type)
+            {
+            case 0:
+                e->symbol = 'D';
+                e->damage = 2;
+                e->health = 5;
+                break;
+            case 1:
+                e->symbol = 'F';
+                e->damage = 4;
+                e->health = 10;
+                break;
+            case 2:
+                e->symbol = 'G';
+                e->damage = 5;
+                e->health = 15;
+                break;
+            case 3:
+                e->symbol = 'S';
+                e->damage = 6;
+                e->health = 20;
+                break;
+            case 4:
+                e->symbol = 'U';
+                e->damage = 8;
+                e->health = 30;
+                e->special_ability = undead_ability;
+                break;
+            }
+
+            // Place in random room
+            int random_room = rand() % floors[floor].num_rooms;
+            Room *r = &floors[floor].rooms[random_room];
+
+            // Try to place enemy
+            int max_attempts = 100;
+            int attempts = 0;
+            bool position_found = false;
+
+            while (attempts < max_attempts)
+            {
+                int test_x = r->x + (rand() % (r->width - 2)) + 1;
+                int test_y = r->y + (rand() % (r->height - 2)) + 1;
+
+                if (floors[floor].map[test_y][test_x] == '.')
+                {
+                    e->x = test_x;
+                    e->y = test_y;
+                    floors[floor].map[test_y][test_x] = e->symbol;
+                    floors[floor].temp_map[test_y][test_x] = e->symbol;
+                    position_found = true;
+                    break;
+                }
+                attempts++;
+            }
+
+            if (!position_found)
+            {
+                e->active = false;
+                free(e);
+                continue;
+            }
+
+            enemies[floor][enemies_placed] = e;
+            enemies_placed++;
+            enemy_counts[floor]++;
         }
     }
 }
+
 void is_in_same_room(int x1, int y1, int x2, int y2, bool *same_room)
 {
     *same_room = false;
@@ -344,20 +371,20 @@ void is_in_same_room(int x1, int y1, int x2, int y2, bool *same_room)
 
 void update_enemies()
 {
-    static int move_counter = 0;
-    move_counter++;
-
-    if (move_counter % 3 != 0)
-    {
-        return;
-    }
-
     for (int i = 0; i < enemy_counts[current_floor]; i++)
     {
         Enemy *e = enemies[current_floor][i];
 
-        if (e == NULL || !e->active)
+        if (e == NULL)
         {
+            continue;
+        }
+
+        if (e->health <= 0 || !e->active)
+        {
+            map[e->y][e->x] = '.';
+            temp_map[e->y][e->x] = '.'; 
+            e->active = false;
             continue;
         }
 
@@ -368,15 +395,15 @@ void update_enemies()
         int prev_y = e->y;
         bool moved = false;
 
-        if (same_room && !e->can_move && (e->symbol != 'g' && e->symbol != 'S'))
+        bool should_pursue = false;
+        if (e->symbol == 'S')
         {
-            e->can_move = true;
-            e->moves_made = 0;
+            should_pursue = same_room;
         }
-
-        bool should_pursue = (e->symbol == 'S') ||
-                             (e->symbol == 'g') ||
-                             (same_room && e->can_move && e->moves_made < 6);
+        else
+        {
+            should_pursue = same_room && e->moves_made < 5;
+        }
 
         if (should_pursue)
         {
@@ -393,70 +420,52 @@ void update_enemies()
             else if (hero_y < e->y)
                 dy = -1;
 
-            bool can_move = true;
-            switch (e->symbol)
+            if (dx != 0 && dy != 0)
             {
-            case 'D': // Dragon
-            case 'F': // Frost Giant
-            case 'U': // Undead
-            case 'G': // Giant
-                can_move = e->can_move && e->moves_made < 6;
-                break;
-            case 'g':
-            case 'S':
-                can_move = true;
-                break;
+                if (map[e->y + dy][e->x + dx] == '.')
+                {
+                    e->x += dx;
+                    e->y += dy;
+                    moved = true;
+                }
+                else if (map[e->y][e->x + dx] == '.')
+                {
+                    e->x += dx;
+                    moved = true;
+                }
+                else if (map[e->y + dy][e->x] == '.')
+                {
+                    e->y += dy;
+                    moved = true;
+                }
+            }
+            else
+            {
+                if (map[e->y + dy][e->x + dx] == '.')
+                {
+                    e->x += dx;
+                    e->y += dy;
+                    moved = true;
+                }
             }
 
-            if (can_move)
+            if (moved)
             {
-                if (dx != 0 && dy != 0)
+                floors[current_floor].map[prev_y][prev_x] = '.';
+                floors[current_floor].temp_map[prev_y][prev_x] = '.';
+                map[prev_y][prev_x] = '.';
+                temp_map[prev_y][prev_x] = '.'; 
+                map[e->y][e->x] = e->symbol;
+                temp_map[e->y][e->x] = e->symbol; 
+
+                if (e->symbol != 'S')
                 {
-                    if (map[e->y + dy][e->x + dx] == '.')
-                    {
-                        e->x += dx;
-                        e->y += dy;
-                        moved = true;
-                    }
-                    else if (map[e->y][e->x + dx] == '.')
-                    {
-                        e->x += dx;
-                        moved = true;
-                    }
-                    else if (map[e->y + dy][e->x] == '.')
-                    {
-                        e->y += dy;
-                        moved = true;
-                    }
-                }
-                else
-                {
-                    if (map[e->y + dy][e->x + dx] == '.' || (e->symbol == 'g'))
-                    {
-                        e->x += dx;
-                        e->y += dy;
-                        moved = true;
-                    }
+                    e->moves_made++;
                 }
             }
         }
 
-        if (moved)
-        {
-            map[prev_y][prev_x] = '.';
-            map[e->y][e->x] = e->symbol;
-
-            if (e->symbol != 'g' && e->symbol != 'S')
-            {
-                e->moves_made++;
-                if (e->moves_made >= 6)
-                {
-                    e->can_move = false;
-                }
-            }
-        }
-
-        if (abs(e->x - hero_x) <= 1 && abs(e->y - hero_y) <= 1 && e->active > 0)
+        if (abs(e->x - hero_x) <= 1 && abs(e->y - hero_y) <= 1 && e->active)
         {
             health -= e->damage;
             mvprintw(0, 2, "Enemy attack! -%d HP", e->damage);
@@ -467,7 +476,9 @@ void update_enemies()
                 e->special_ability(e);
             }
         }
-        if(e->symbol == 'U') {
+
+        if (e->symbol == 'U')
+        {
             if (rand() % 100 < 30 && e->special_ability != NULL)
             {
                 e->special_ability(e);
@@ -481,14 +492,19 @@ void draw_enemies()
     for (int i = 0; i < enemy_counts[current_floor]; i++)
     {
         Enemy *e = enemies[current_floor][i];
-        if (e == NULL || !e->active || e->health <= 0 || e->can_move)
+        if (e == NULL || !e->active || e->health <= 0)
         {
-            continue; 
+            continue;
+        }
+
+        if ((!e->active || e->health <= 0) && discovered_map[e->y][e->x])
+        {
+            mvaddch(e->y, e->x, '.');
         }
 
         if (e->y < 0 || e->y >= HEIGHT || e->x < 0 || e->x >= WIDTH)
         {
-            continue; 
+            continue;
         }
 
         if (discovered_map[e->y][e->x])
@@ -497,8 +513,6 @@ void draw_enemies()
         }
     }
 }
-
-
 
 void make_room_security(int f, int i)
 {
@@ -533,14 +547,13 @@ void make_room_nightmare(int f, int r)
 
     room->is_room_nightmare = true;
 
-    // Add more enemies specific to nightmare rooms
     for (int i = 0; i < enemy_counts[f]; i++)
     {
         Enemy *e = enemies[f][i];
         if (!e->active)
         {
             e->active = true;
-            e->symbol = 'g'; 
+            e->symbol = 'g';
             e->damage = 5;
             e->health = 15;
             e->special_ability = ghost_ability;
@@ -556,6 +569,7 @@ void make_room_nightmare(int f, int r)
                     e->x = test_x;
                     e->y = test_y;
                     floor->map[test_y][test_x] = e->symbol;
+                    e->active = true;
                     break;
                 }
                 max_attempts--;
@@ -573,7 +587,7 @@ void make_room_door_hidden(int f, int r)
     int door_y = (r >= 3) ? room->left_door_y : room->right_door_y;
 
     floor->temp_map[door_y][door_x] = '?';
-    floor->map[door_y][door_x] = '?';
+    floor->map[door_y][door_x] = '|';
 }
 
 void make_spec_rooms()
@@ -617,42 +631,23 @@ void make_spec_rooms()
         }
     }
 
-    int enchanted_rooms_placed = 0;
-    while (enchanted_rooms_placed < 2)
+    int hidden_room = 0;
+    while (hidden_room < 3)
     {
         int random_floor = rand() % 4;
         int random_room = rand() % 6;
         Room *selected_room = &floors[random_floor].rooms[random_room];
 
-        if (!selected_room->is_room_enchanted &&
-            !selected_room->is_room_nightmare &&
+        if (!selected_room->is_room_nightmare &&
+            !selected_room->is_room_security &&
+            !selected_room->is_room_enchanted &&
             random_room != 5)
         {
-            selected_room->is_room_enchanted = true;
-            enchanted_rooms_placed++;
 
-            for (int y = selected_room->y; y < selected_room->y + selected_room->height; y++)
-            {
-                for (int x = selected_room->x; x < selected_room->x + selected_room->width; x++)
-                {
-                    if (floors[random_floor].map[y][x] == '.' && floors[random_floor].map[y][x + 1] != '+' &&
-                        floors[random_floor].map[y][x + 1] != '@' && floors[random_floor].map[y][x - 1] != '@' &&
-                        floors[random_floor].map[y][x - 1] != '+')
-                    {
-                        // if (rand() % 10 == 0)
-                        // {
-                        //     floors[random_floor].map[y][x] = '*';
-                        //     floors[random_floor].temp_map[y][x] = '*';
-                        // }
-                    }
-                }
-            }
+            make_room_door_hidden(random_floor, random_room);
+            hidden_room++;
+
+            floors[random_floor].rooms[random_room + 1].is_room_enchanted = true;
         }
     }
-
-    make_room_security(0, 0);
-    // int num_of_nightmare_rooms = 0;
-
-
-    // make_room_door_hidden(0, 0);
 }

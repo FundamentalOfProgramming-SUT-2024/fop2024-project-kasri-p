@@ -20,6 +20,14 @@ int load_game(char username[], int *score);
 void check_save_exists(char username[]);
 void draw_map();
 
+time_t speed_spell_end_time = 0;
+time_t health_spell_end_time = 0;
+time_t damage_spell_end_time = 0;
+
+int last_dx = 0, last_dy = 0;
+
+bool final_room = false;
+
 void add_traps()
 {
     for (int f = 0; f < 4; f++)
@@ -155,7 +163,7 @@ void add_golds()
                 int wand_y = floors[f].rooms[r].y + 1 + rand() % (floors[f].rooms[r].height - 2);
                 if (floors[f].map[wand_y][wand_x] == '.')
                 {
-                    floors[f].map[wand_y][wand_x] = 'W'; 
+                    floors[f].map[wand_y][wand_x] = 'W';
                 }
             }
         }
@@ -677,7 +685,6 @@ void switch_floor()
         floors[current_floor].floor_discovered = true;
     }
 
-
     draw_map();
 
     for (int y = 0; y < HEIGHT; y++)
@@ -692,12 +699,46 @@ void switch_floor()
 void draw_map()
 {
     start_color();
-    mvprintw(LINES - 1, 2, "               ");
+    for (int i = 0; i < COLS; i++)
+    {
+        mvprintw(LINES - 1, i, " ");
+    }
     mvprintw(LINES - 1, 2, "Health: %d/100 Hunger: %d/100", health, hunger);
     mvprintw(LINES - 1, 33, "Level: %d/4", current_floor + 1);
     mvprintw(LINES - 1, 45, "Gold: %d", bag.gold_count);
     init_pair(9, COLOR_YELLOW, COLOR_BLACK);
     init_pair(70, COLOR_BLUE, COLOR_BLACK);
+
+    if (time(NULL) < speed_spell_end_time)
+    {
+        int remaining_time = speed_spell_end_time - time(NULL);
+        mvprintw(LINES - 1, 60, "Speed Spell: %d s", remaining_time);
+    }
+    else
+    {
+        int remaining_time = 0;
+        mvprintw(LINES - 1, 60, "Speed Spell: %d s", remaining_time);
+    }
+    if (time(NULL) < damage_spell_end_time)
+    {
+        int remaining_time = damage_spell_end_time - time(NULL);
+        mvprintw(LINES - 1, 79, "Damage Spell: %d s", remaining_time);
+    }
+    else
+    {
+        int remaining_time = 0;
+        mvprintw(LINES - 1, 79, "Damage Spell: %d s", remaining_time);
+    }
+    if (time(NULL) < health_spell_end_time)
+    {
+        int remaining_time = health_spell_end_time - time(NULL);
+        mvprintw(LINES - 1, 98, "Health Spell: %d s", remaining_time);
+    }
+    else
+    {
+        int remaining_time = 0;
+        mvprintw(LINES - 1, 98, "Damage Spell: %d s", remaining_time);
+    }
 
     draw_enemies();
     for (int i = 1; i < HEIGHT - 1; i++)
@@ -785,83 +826,86 @@ void draw_map()
         }
     }
 
-    for (int r = 0; r < 6; r++)
+    if (!final_room)
     {
-        Room *room = &floors[current_floor].rooms[r];
-
-        int x = (r < 3) ? room->right_door_x : room->left_door_x;
-        int y = (r < 3) ? room->right_door_y : room->left_door_y;
-
-        if (floors[current_floor].temp_map[y][x] == '?' && discovered_map[room->y + 2][room->x + 2])
+        for (int r = 0; r < 6; r++)
         {
-            mvaddch(y, x, floors[current_floor].map[y][x]);
-        }
+            Room *room = &floors[current_floor].rooms[r];
 
-        if (room->is_room_security)
-        {
-            int door_x = (r < 3) ? room->right_door_x : room->left_door_x;
-            int door_y = (r < 3) ? room->right_door_y : room->left_door_y;
+            int x = (r < 3) ? room->right_door_x : room->left_door_x;
+            int y = (r < 3) ? room->right_door_y : room->left_door_y;
 
-            if (discovered_map[door_y][door_x])
+            if (floors[current_floor].temp_map[y][x] == '?' && discovered_map[room->y + 2][room->x + 2])
             {
-                init_pair(8, COLOR_RED, COLOR_BLACK);
-                init_pair(9, COLOR_GREEN, COLOR_BLACK);
-                if (room->is_room_locked)
+                mvaddch(y, x, floors[current_floor].map[y][x]);
+            }
+
+            if (room->is_room_security)
+            {
+                int door_x = (r < 3) ? room->right_door_x : room->left_door_x;
+                int door_y = (r < 3) ? room->right_door_y : room->left_door_y;
+
+                if (discovered_map[door_y][door_x])
                 {
-                    attron(COLOR_PAIR(8));
-                    mvaddch(door_y, door_x, '@');
-                    attroff(COLOR_PAIR(8));
-                }
-                else
-                {
-                    attron(COLOR_PAIR(9));
-                    mvaddch(door_y, door_x, '@');
-                    attroff(COLOR_PAIR(9));
+                    init_pair(8, COLOR_RED, COLOR_BLACK);
+                    init_pair(9, COLOR_GREEN, COLOR_BLACK);
+                    if (room->is_room_locked)
+                    {
+                        attron(COLOR_PAIR(8));
+                        mvaddch(door_y, door_x, '@');
+                        attroff(COLOR_PAIR(8));
+                    }
+                    else
+                    {
+                        attron(COLOR_PAIR(9));
+                        mvaddch(door_y, door_x, '@');
+                        attroff(COLOR_PAIR(9));
+                    }
                 }
             }
-        }
 
-        if (room->is_room_nightmare)
-        {
-            attron(COLOR_PAIR(70));
-            for (int y = room->y; y < room->y + room->height; y++)
+            if (room->is_room_nightmare)
             {
-                for (int x = room->x; x < room->x + room->width; x++)
+                attron(COLOR_PAIR(70));
+                for (int y = room->y; y < room->y + room->height; y++)
                 {
-                    if (discovered_map[y][x])
+                    for (int x = room->x; x < room->x + room->width; x++)
+                    {
+                        if (discovered_map[y][x])
+                        {
+                            mvaddch(y, x, map[y][x]);
+                        }
+                    }
+                }
+                attroff(COLOR_PAIR(70));
+            }
+
+            if (room->is_room_enchanted && discovered_map[room->y][room->x])
+            {
+                init_pair(112, COLOR_CYAN, COLOR_BLACK);
+                attron(COLOR_PAIR(112));
+                for (int y = room->y; y < room->y + room->height; y++)
+                {
+                    for (int x = room->x; x < room->x + room->width; x++)
                     {
                         mvaddch(y, x, map[y][x]);
                     }
                 }
+                attroff(COLOR_PAIR(112));
             }
-            attroff(COLOR_PAIR(70));
-        }
 
-        if (room->is_room_enchanted && discovered_map[room->y][room->x])
-        {
-            init_pair(112, COLOR_CYAN, COLOR_BLACK);
-            attron(COLOR_PAIR(112));
-            for (int y = room->y; y < room->y + room->height; y++)
+            if (room->is_room_treasure && discovered_map[room->y][room->x])
             {
-                for (int x = room->x; x < room->x + room->width; x++)
+                attron(COLOR_PAIR(9));
+                for (int y = room->y; y < room->y + room->height; y++)
                 {
-                    mvaddch(y, x, map[y][x]);
+                    for (int x = room->x; x < room->x + room->width; x++)
+                    {
+                        mvaddch(y, x, map[y][x]);
+                    }
                 }
+                attroff(COLOR_PAIR(9));
             }
-            attroff(COLOR_PAIR(112));
-        }
-
-        if (room->is_room_treasure && discovered_map[room->y][room->x])
-        {
-            attron(COLOR_PAIR(9));
-            for (int y = room->y; y < room->y + room->height; y++)
-            {
-                for (int x = room->x; x < room->x + room->width; x++)
-                {
-                    mvaddch(y, x, map[y][x]);
-                }
-            }
-            attroff(COLOR_PAIR(9));
         }
     }
     for (int i = 1; i < HEIGHT - 1; i++)
@@ -1216,27 +1260,7 @@ int load_game(char username[], int *score)
                 fread(&enemies[f][i]->active, sizeof(bool), 1, save_file);
                 fread(&enemies[f][i]->moves_made, sizeof(int), 1, save_file);
                 fread(&enemies[f][i]->can_move, sizeof(bool), 1, save_file);
-
-                switch (enemies[f][i]->symbol)
-                {
-                case 'D':
-                    enemies[f][i]->special_ability = dragon_ability;
-                    break;
-                case 'F':
-                    enemies[f][i]->special_ability = frost_giant_ability;
-                    break;
-                case 'G':
-                    enemies[f][i]->special_ability = ghost_ability;
-                    break;
-                case 'S':
-                    enemies[f][i]->special_ability = serpent_ability;
-                    break;
-                case 'U':
-                    enemies[f][i]->special_ability = undead_ability;
-                    break;
-                default:
-                    enemies[f][i]->special_ability = NULL;
-                }
+                
             }
             else
             {

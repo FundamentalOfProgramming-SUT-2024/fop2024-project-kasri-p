@@ -311,7 +311,7 @@ void cleanup_music()
 
 void play_nightmare_music()
 {
-    const char *path = "/Users/kasra/Desktop/songs/enchant.mp3";
+    const char *path = "/Users/kasra/Desktop/songs/jori.mp3";
 }
 
 void play_enchanted_music()
