@@ -23,10 +23,9 @@ void draw_map();
 time_t speed_spell_end_time = 0;
 time_t health_spell_end_time = 0;
 time_t damage_spell_end_time = 0;
-
 int last_dx = 0, last_dy = 0;
 
-bool final_room = false;
+
 
 void add_traps()
 {
@@ -136,14 +135,13 @@ void add_golds()
     {
         for (int r = 0; r < 6; r++)
         {
-            // Add daggers, arrows, and magic wands with uppercase characters
             if (rand() % 10 == 0)
             {
                 int dagger_x = floors[f].rooms[r].x + 1 + rand() % (floors[f].rooms[r].width - 2);
                 int dagger_y = floors[f].rooms[r].y + 1 + rand() % (floors[f].rooms[r].height - 2);
                 if (floors[f].map[dagger_y][dagger_x] == '.')
                 {
-                    floors[f].map[dagger_y][dagger_x] = '"'; // Map-generated dagger
+                    floors[f].map[dagger_y][dagger_x] = '"'; 
                 }
             }
 
@@ -153,7 +151,7 @@ void add_golds()
                 int arrow_y = floors[f].rooms[r].y + 1 + rand() % (floors[f].rooms[r].height - 2);
                 if (floors[f].map[arrow_y][arrow_x] == '.')
                 {
-                    floors[f].map[arrow_y][arrow_x] = 'A'; // Map-generated arrow
+                    floors[f].map[arrow_y][arrow_x] = 'A';
                 }
             }
 
@@ -166,6 +164,15 @@ void add_golds()
                     floors[f].map[wand_y][wand_x] = 'W';
                 }
             }
+            if (rand() % 10 == 0)
+            {
+                int sword_x = floors[f].rooms[r].x + 1 + rand() % (floors[f].rooms[r].width - 2);
+                int sword_y = floors[f].rooms[r].y + 1 + rand() % (floors[f].rooms[r].height - 2);
+                if (floors[f].map[sword_y][sword_x] == '.')
+                {
+                    floors[f].map[sword_y][sword_x] = 's';
+                }
+            }
         }
     }
 }
@@ -174,7 +181,7 @@ void init_bag()
 {
     bag.damage_spells = 0;
     bag.gold_count = 0;
-    bag.has_ancient_key = false;
+    bag.has_ancient_key = 0;
     bag.health_spells = 0;
     bag.speed_spells = 0;
 
@@ -184,9 +191,9 @@ void init_bag()
     bag.normal_arrow = true;
     bag.dagger = true;
 
-    bag.wand_count = 10;
-    bag.dagger_count = 10;
-    bag.arrow_count = 10;
+    bag.wand_count = 0;
+    bag.dagger_count = 0;
+    bag.arrow_count = 0;
 }
 
 Floor *create_floor()
@@ -196,6 +203,7 @@ Floor *create_floor()
     floor->map = (char **)malloc(HEIGHT * sizeof(char *));
     floor->temp_map = (char **)malloc(HEIGHT * sizeof(char *));
     floor->discovered_map = (char **)malloc(HEIGHT * sizeof(char *));
+
     for (int i = 0; i < HEIGHT; i++)
     {
         floor->map[i] = (char *)malloc(WIDTH * sizeof(char));
@@ -313,7 +321,6 @@ void add_room(Room room, int room_index, Floor *floor)
         }
     }
 
-    // Add windows
     int num_windows = rand() % 3;
     for (int i = 0; i < num_windows; i++)
     {
@@ -533,7 +540,12 @@ void generate_map()
     int section_width = WIDTH / 3;
     int section_height = HEIGHT / 2;
 
-    int section_positions[6][2] = {{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 1}, {0, 1}};
+    int section_positions[6][2] = {{0, 0},
+                                   {1, 0},
+                                   {2, 0},
+                                   {2, 1},
+                                   {1, 1},
+                                   {0, 1}};
 
     for (int f = 0; f < 4; f++)
     {
@@ -573,7 +585,9 @@ void generate_map()
                 int key_x = room.x + 1 + rand() % (room.width - 2);
                 int key_y = room.y + 1 + rand() % (room.height - 2);
 
-                if (current_floor->map[key_y][key_x] == '.' && current_floor->map[key_y][key_x - 1] != '%' && current_floor->map[key_y][key_x - 2] != '%')
+                if (current_floor->map[key_y][key_x] == '.' &&
+                    current_floor->map[key_y][key_x - 1] != '%' &&
+                    current_floor->map[key_y][key_x - 2] != '%')
                 {
                     current_floor->map[key_y][key_x] = 'K';
                     key_placed = true;
@@ -687,11 +701,21 @@ void switch_floor()
 
     draw_map();
 
-    for (int y = 0; y < HEIGHT; y++)
+    for (int i = 0; i < HEIGHT; i++)
     {
-        for (int x = 0; x < WIDTH; x++)
+        for (int j = 0; j < WIDTH; j++)
         {
-            temp_map[y][x] = map[y][x];
+            temp_map[i][j] = map[i][j];
+        }
+    }
+    for (int i = 0; i < HEIGHT; i++)
+    {
+        for (int j = 0; j < WIDTH; j++)
+        {
+            if (floors[current_floor].temp_map[i][j] == '?')
+            {
+                temp_map[i][j] = floors[current_floor].temp_map[i][j];
+            }
         }
     }
 }
@@ -706,7 +730,7 @@ void draw_map()
     mvprintw(LINES - 1, 2, "Health: %d/100 Hunger: %d/100", health, hunger);
     mvprintw(LINES - 1, 33, "Level: %d/4", current_floor + 1);
     mvprintw(LINES - 1, 45, "Gold: %d", bag.gold_count);
-    init_pair(9, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(167, COLOR_YELLOW, COLOR_BLACK);
     init_pair(70, COLOR_BLUE, COLOR_BLACK);
 
     if (time(NULL) < speed_spell_end_time)
@@ -771,9 +795,9 @@ void draw_map()
             else if (map[i][j] == 'K')
             {
                 char key[] = "∆";
-                attron(COLOR_PAIR(9));
+                attron(COLOR_PAIR(167));
                 mvprintw(i, j, "%s", key);
-                attroff(COLOR_PAIR(9));
+                attroff(COLOR_PAIR(167));
             }
             else if (map[i][j] == 'b')
             {
@@ -818,6 +842,10 @@ void draw_map()
             {
                 char crown[] = "👑";
                 mvprintw(i, j - 1, "%s", crown);
+            }
+            else if (map[i][j] == 's') {
+                char sword[] = "🔪";
+                mvprintw(i, j - 1, "%s", sword);
             }
             else
             {
@@ -932,9 +960,9 @@ void draw_map()
             else if (map[i][j] == 'K' && discovered_map[i][j])
             {
                 char key[5] = "∆";
-                attron(COLOR_PAIR(9));
+                attron(COLOR_PAIR(167));
                 mvprintw(i, j, "%s", key);
-                attroff(COLOR_PAIR(9));
+                attroff(COLOR_PAIR(167));
             }
             else if (map[i][j] == 'b' && discovered_map[i][j])
             {
@@ -979,6 +1007,11 @@ void draw_map()
             {
                 char crown[] = "👑";
                 mvprintw(i, j - 1, "%s", crown);
+            }
+            else if (map[i][j] == 's' && discovered_map[i][j])
+            {
+                char sword[] = "🔪";
+                mvprintw(i, j - 1, "%s", sword);
             }
             else if (map[i][j] == 'm' && discovered_map[i][j])
             {
@@ -1260,7 +1293,6 @@ int load_game(char username[], int *score)
                 fread(&enemies[f][i]->active, sizeof(bool), 1, save_file);
                 fread(&enemies[f][i]->moves_made, sizeof(int), 1, save_file);
                 fread(&enemies[f][i]->can_move, sizeof(bool), 1, save_file);
-                
             }
             else
             {

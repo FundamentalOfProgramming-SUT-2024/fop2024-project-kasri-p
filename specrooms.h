@@ -23,50 +23,26 @@ int spell_type = 0;
 int weapon_selected = 0;
 int frost = 0;
 int hero_y, hero_x;
-
-
-typedef struct
-{
-    int x;
-    int y;
-    bool dropped;
-    char weapon_char;
-} Weapon;
-
-struct Enemy;
-typedef void (*EnemyAbility)(struct Enemy *);
-
-typedef struct Enemy
-{
-    char symbol;
-    int x;
-    int y;
-    int health;
-    int damage;
-    bool active;
-    EnemyAbility special_ability;
-    int moves_made;
-    bool can_move;
-} Enemy;
-
-Enemy *enemies[5][MAX_ENEMIES_PER_FLOOR];
 int enemy_counts[5];
-
 int current_hero_color = 1;
 char **map;
 char **temp_map;
 int WIDTH, HEIGHT;
-
 int num_rooms = 0;
+bool final_room = false;
+
+
+struct Enemy;
+typedef void (*EnemyAbility)(struct Enemy *);
 
 typedef struct
 {
-    bool has_ancient_key;
+    int has_ancient_key;
     int gold_count;
     int speed_spells;
     int health_spells;
     int damage_spells;
-    bool broke_key;
+    int broke_key;
 
     int total_spells;
     int total_foods;
@@ -84,6 +60,9 @@ typedef struct
     bool health_spell;
     bool speed_spell;
     bool damage_spell;
+
+    time_t food_pickup[5];
+    int food_type[5];
 } Bag;
 Bag bag;
 
@@ -136,21 +115,23 @@ typedef struct
 } Floor;
 Floor floors[4];
 
-
-void ghost_ability(Enemy *e)
+typedef struct Enemy
 {
-    int new_x = e->x + (rand() % 3) - 1;
-    int new_y = e->y + (rand() % 3) - 1;
+    char symbol;
+    int x;
+    int y;
+    int health;
+    int damage;
+    bool active;
+    EnemyAbility special_ability;
+    int moves_made;
+    bool can_move;
+} Enemy;
 
-    if (new_x > 0 && new_x < WIDTH - 1 && new_y > 0 && new_y < HEIGHT - 1)
-    {
-        map[e->y][e->x] = temp_map[e->y][e->x];
-        e->x = new_x;
-        e->y = new_y;
-        map[e->y][e->x] = 'g';
-    }
-}
+Enemy *enemies[5][MAX_ENEMIES_PER_FLOOR];
 
+
+// A chance that Undead becomes alive again
 void undead_ability(Enemy *e)
 {
     if (e->health <= 0 && rand() % 100 < 30)
@@ -161,10 +142,11 @@ void undead_ability(Enemy *e)
         refresh();
     }
 }
+
 void initialize_enemies()
 {
     for (int f = 0; f < 5; f++)
-    { // Include the final floor (index 4)
+    {
         for (int i = 0; i < enemy_counts[f]; i++)
         {
             if (enemies[f][i] != NULL)
@@ -192,7 +174,7 @@ void initialize_enemies()
             }
 
             e->moves_made = 0;
-            e->can_move = true; 
+            e->can_move = true;
             e->active = true;
             e->x = 0;
             e->y = 0;
@@ -264,22 +246,18 @@ void initialize_enemies()
             enemy_counts[floor]++;
         }
 
-        // Add additional enemies up to MAX_ENEMIES_PER_FLOOR
-        int additional_enemies = (floor + 1) * 2; // Scaling difficulty by floor
+        int additional_enemies = (floor + 1) * 2; 
         for (int i = 0; i < additional_enemies && enemy_counts[floor] < MAX_ENEMIES_PER_FLOOR; i++)
         {
             Enemy *e = (Enemy *)malloc(sizeof(Enemy));
             if (e == NULL)
                 continue;
 
-            // Initialize similar to above but place in random rooms
             e->moves_made = 0;
             e->can_move = true;
             e->active = true;
 
-            // Random enemy type (same as above)
             int type = rand() % 5;
-            // ... (same enemy type initialization as above)
             switch (type)
             {
             case 0:
@@ -310,11 +288,9 @@ void initialize_enemies()
                 break;
             }
 
-            // Place in random room
             int random_room = rand() % floors[floor].num_rooms;
             Room *r = &floors[floor].rooms[random_room];
 
-            // Try to place enemy
             int max_attempts = 100;
             int attempts = 0;
             bool position_found = false;
@@ -371,6 +347,94 @@ void is_in_same_room(int x1, int y1, int x2, int y2, bool *same_room)
 
 void update_enemies()
 {
+    if (final_room)
+    {
+        for (int i = 0; i < enemy_counts[4]; i++)
+        {
+            Enemy *e = enemies[4][i];
+
+            if (e == NULL || !e->active || e->health <= 0)
+            {
+                continue;
+            }
+
+            int prev_x = e->x;
+            int prev_y = e->y;
+            bool moved = false;
+
+            if (e->can_move)
+            {
+                int dx = 0;
+                int dy = 0;
+
+                if (hero_x > e->x)
+                    dx = 1;
+                else if (hero_x < e->x)
+                    dx = -1;
+
+                if (hero_y > e->y)
+                    dy = 1;
+                else if (hero_y < e->y)
+                    dy = -1;
+
+                if (dx != 0 && dy != 0)
+                {
+                    if (map[e->y + dy][e->x + dx] == '.')
+                    {
+                        e->x += dx;
+                        e->y += dy;
+                        moved = true;
+                    }
+                    else
+                    {
+                        if (map[e->y][e->x + dx] == '.')
+                        {
+                            e->x += dx;
+                            moved = true;
+                        }
+                        else if (map[e->y + dy][e->x] == '.')
+                        {
+                            e->y += dy;
+                            moved = true;
+                        }
+                    }
+                }
+                else
+                {
+                    if (map[e->y + dy][e->x + dx] == '.')
+                    {
+                        e->x += dx;
+                        e->y += dy;
+                        moved = true;
+                    }
+                }
+
+                if (moved)
+                {
+                    map[prev_y][prev_x] = '.';
+                    temp_map[prev_y][prev_x] = '.';
+                    map[e->y][e->x] = e->symbol;
+                    temp_map[e->y][e->x] = e->symbol;
+                }
+            }
+
+            // Attack player if adjacent
+            if (abs(e->x - hero_x) <= 1 && abs(e->y - hero_y) <= 1 && e->active)
+            {
+                int final_damage = e->damage;
+                health -= final_damage;
+                mvprintw(0, 2, "Boss enemy attack! -%d HP", final_damage);
+                refresh();
+
+                if (rand() % 100 < 50 && e->special_ability != NULL)
+                {
+                    e->special_ability(e);
+                }
+            }
+        }
+        return; 
+    }
+
     for (int i = 0; i < enemy_counts[current_floor]; i++)
     {
         Enemy *e = enemies[current_floor][i];
@@ -383,7 +447,7 @@ void update_enemies()
         if (e->health <= 0 || !e->active)
         {
             map[e->y][e->x] = '.';
-            temp_map[e->y][e->x] = '.'; 
+            temp_map[e->y][e->x] = '.';
             e->active = false;
             continue;
         }
@@ -395,17 +459,11 @@ void update_enemies()
         int prev_y = e->y;
         bool moved = false;
 
-        bool should_pursue = false;
-        if (e->symbol == 'S')
-        {
-            should_pursue = same_room;
-        }
-        else
-        {
-            should_pursue = same_room && e->moves_made < 5;
-        }
+        bool should_pursue = current_floor == 4 ||
+                             (e->symbol == 'S' && same_room) ||
+                             (same_room && e->moves_made < 5);
 
-        if (should_pursue)
+        if (should_pursue && e->can_move)
         {
             int dx = 0;
             int dy = 0;
@@ -454,9 +512,9 @@ void update_enemies()
                 floors[current_floor].map[prev_y][prev_x] = '.';
                 floors[current_floor].temp_map[prev_y][prev_x] = '.';
                 map[prev_y][prev_x] = '.';
-                temp_map[prev_y][prev_x] = '.'; 
+                temp_map[prev_y][prev_x] = '.';
                 map[e->y][e->x] = e->symbol;
-                temp_map[e->y][e->x] = e->symbol; 
+                temp_map[e->y][e->x] = e->symbol;
 
                 if (e->symbol != 'S')
                 {
@@ -556,7 +614,6 @@ void make_room_nightmare(int f, int r)
             e->symbol = 'g';
             e->damage = 5;
             e->health = 15;
-            e->special_ability = ghost_ability;
 
             int max_attempts = 100;
             while (max_attempts > 0)

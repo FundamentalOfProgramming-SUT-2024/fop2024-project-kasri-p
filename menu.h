@@ -45,7 +45,7 @@ void enemies_info()
 }
 
 void clear_error()
-{ 
+{
     for (int i = 0; i < COLS; i++)
     {
         mvprintw(LINES - 2, i, " ");
@@ -59,8 +59,13 @@ void clear_error()
 void draw_color_menu(int current_selection)
 {
     clear();
-    boarder();
 
+    // Create a more decorative border
+    attron(A_BOLD);
+    box(stdscr, 0, 0);
+    attroff(A_BOLD);
+
+    // Initialize color pairs with more contrast
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_RED, COLOR_BLACK);
     init_pair(3, COLOR_GREEN, COLOR_BLACK);
@@ -68,7 +73,11 @@ void draw_color_menu(int current_selection)
     init_pair(5, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(6, COLOR_CYAN, COLOR_BLACK);
 
-    mvprintw(2, 2, "Choose Hero Color:");
+    // Decorative title with a separator
+    attron(A_BOLD | COLOR_PAIR(4));
+    mvprintw(2, (COLS - 18) / 2, "HERO COLOR SELECT");
+    mvhline(3, 2, ACS_BULLET, COLS - 4);
+    attroff(A_BOLD | COLOR_PAIR(4));
 
     const char *options[] = {
         "White (Default)",
@@ -78,42 +87,35 @@ void draw_color_menu(int current_selection)
         "Magenta",
         "Cyan"};
 
+    int start_y = LINES / 3;
+    int start_x = COLS / 2;
+
     for (int i = 0; i < 6; i++)
     {
+        int y_pos = start_y + i * 2;
+        int x_pos = start_x - strlen(options[i]) / 2;
+
         if (i == current_selection)
         {
-            if (i == 0 || i == 5)
-            {
-                if (i == 0)
-                {
-                    mvprintw(LINES / 3 + 2, COLS / 2 - strlen(options[1]) / 2 - 2, " ");
-                    mvprintw(LINES / 3 + 6 * 2, COLS / 2 - strlen(options[5]) / 2 - 2, " ");
-                }
-                if (i == 5)
-                {
-                    mvprintw(LINES / 3 + 10, COLS / 2 - strlen(options[4]) / 2 - 2, " ");
-                    mvprintw(LINES / 3, COLS / 2 - strlen(options[0]) / 2 - 2, " ");
-                }
-            }
-            else
-            {
-                mvprintw(LINES / 3 + (i - 1) * 2, COLS / 2 - strlen(options[i - 1]) / 2 - 2, " ");
-                mvprintw(LINES / 3 + (i + 1) * 2, COLS / 2 - strlen(options[i + 1]) / 2 - 2, " ");
-            }
-            attron(COLOR_PAIR(i + 1) | A_BOLD);
-            mvprintw(LINES / 3 + i * 2, COLS / 2 - strlen(options[i]) / 2 - 2, "► ");
-            mvprintw(LINES / 3 + i * 2, COLS / 2 - strlen(options[i]) / 2, "%s", options[i]);
-            attroff(COLOR_PAIR(i + 1) | A_BOLD);
+            attron(A_BOLD | COLOR_PAIR(i + 1));
+            mvprintw(y_pos, x_pos - 4, "► [ %s ]", options[i]);
+            attroff(A_BOLD | COLOR_PAIR(i + 1));
         }
         else
         {
-            attron(COLOR_PAIR(i + 1) | A_BOLD);
-            mvprintw(LINES / 3 + i * 2, COLS / 2 - strlen(options[i]) / 2, "%s", options[i]);
-            attroff(COLOR_PAIR(i + 1) | A_BOLD);
+            attron(COLOR_PAIR(i + 1) | A_DIM);
+            mvprintw(y_pos, x_pos, "%s", options[i]);
+            attroff(COLOR_PAIR(i + 1) | A_DIM);
         }
     }
 
-    mvprintw(LINES - 2, COLS / 2 - 19, "Press ENTER to select or ESC to return");
+    attron(A_BOLD | COLOR_PAIR(4));
+    mvhline(LINES - 3, 2, ACS_BULLET, COLS - 4);
+    attroff(A_BOLD | COLOR_PAIR(4));
+
+    mvprintw(LINES - 2, (COLS - 42) / 2,
+             "ENTER: Select   ESC: Return to Pause Menu");
+
     refresh();
 }
 
@@ -565,42 +567,142 @@ void new_game(char username[])
 
 void pre_game_menu(char usrname[])
 {
+
+    if (temp_track_index != 0)
+    {
+        if (current_track_index == 5)
+        {
+            play_music(temp_track_index);
+        }
+    }
+
+    enum ColorPairs
+    {
+        TITLE_PAIR = 1,
+        SELECTED_PAIR,
+        NORMAL_PAIR,
+        ACCENT_PAIR,
+        HEADER_PAIR
+    };
+
     clear();
-    boarder();
-    refresh();
-    mvprintw(2, COLS / 2 - 8, "Choose an option");
-    const char *menu_options[] = {"Continue", "New Game", "Choose Difficulty", "Leader Board", "Profile", "Enemies Info", "Quit"};
-    int option = 0;
-    int num_options = 7;
+    start_color();
+    init_pair(TITLE_PAIR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(SELECTED_PAIR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(NORMAL_PAIR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(ACCENT_PAIR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(HEADER_PAIR, COLOR_WHITE, COLOR_BLACK);
 
     keypad(stdscr, TRUE);
+    curs_set(0);
+
+    const struct
+    {
+        const char *title;
+        const char *description;
+        void (*action)(void);
+    } menu_items[] = {
+        {"Continue", "Load your saved game", NULL},
+        {"New Game", "Start a new game", NULL},
+        {"Choose Difficulty", "Set game difficulty", NULL},
+        {"Leader Board", "View high scores", NULL},
+        {"Profile", "View your profile", NULL},
+        {"Enemies Info", "Game information", NULL},
+        {"Quit", "Exit game", NULL}};
+
+    const int num_options = sizeof(menu_items) / sizeof(menu_items[0]);
+    int selected_option = 0;
+    int max_title_length = 0;
+    int max_desc_length = 0;
+
+    for (int i = 0; i < num_options; i++)
+    {
+        int title_len = strlen(menu_items[i].title);
+        int desc_len = strlen(menu_items[i].description);
+        max_title_length = (title_len > max_title_length) ? title_len : max_title_length;
+        max_desc_length = (desc_len > max_desc_length) ? desc_len : max_desc_length;
+    }
+
+    const char *cursor = "•";
+
+    int menu_width = max_title_length + 8;
+    int desc_width = max_desc_length;
+    int total_width = (menu_width > desc_width) ? menu_width : desc_width;
+
     while (1)
     {
+        clear();
+        boarder();
+
+        const char header_text[] = "━━━━━━━━━━ MAIN MENU ━━━━━━━━━━";
+        int header_x = (COLS - strlen(header_text)) / 2;
+
+        attron(COLOR_PAIR(HEADER_PAIR) | A_BOLD);
+        mvprintw(1, COLS / 2 - 16, "%s", header_text);
+        attroff(COLOR_PAIR(HEADER_PAIR) | A_BOLD);
+
+        char welcome_msg[100];
+        snprintf(welcome_msg, sizeof(welcome_msg), "Welcome, %s", usrname);
+        attron(COLOR_PAIR(ACCENT_PAIR) | A_BOLD);
+        mvprintw(5, (COLS - strlen(welcome_msg)) / 2, "%s", welcome_msg);
+        attroff(COLOR_PAIR(ACCENT_PAIR) | A_BOLD);
+
+        int total_menu_height = num_options * 3;
+        int menu_start_y = (LINES - total_menu_height) / 2;
+
         for (int i = 0; i < num_options; i++)
         {
-            if (i == option)
-                attron(A_REVERSE);
-            mvprintw(LINES / 2 + i * 2, COLS / 2 - strlen(menu_options[i]) / 2, "%s", menu_options[i]);
-            if (i == option)
+            int y_pos = menu_start_y + i * 3;
+            bool is_selected = (i == selected_option);
+
+            int menu_start_x = (COLS - total_width) / 2;
+            int title_x = menu_start_x + (total_width - strlen(menu_items[i].title)) / 2;
+            int desc_x = menu_start_x + (total_width - strlen(menu_items[i].description)) / 2;
+
+            if (is_selected)
+            {
+                attron(COLOR_PAIR(SELECTED_PAIR) | A_BOLD | A_REVERSE);
+                mvprintw(y_pos, title_x, "%s", menu_items[i].title);
                 attroff(A_REVERSE);
+                attron(A_DIM);
+                mvprintw(y_pos + 1, desc_x, "%s", menu_items[i].description);
+                attroff(A_DIM);
+                attroff(COLOR_PAIR(SELECTED_PAIR) | A_BOLD);
+            }
+            else
+            {
+                attron(COLOR_PAIR(NORMAL_PAIR));
+                mvprintw(y_pos, title_x, "%s", menu_items[i].title);
+                attroff(COLOR_PAIR(NORMAL_PAIR));
+            }
         }
+
+        const char *help_text = "Navigate: ↑/↓   Select: Enter   Quit: Q";
+        attron(COLOR_PAIR(ACCENT_PAIR));
+        mvprintw(LINES - 3, (COLS - strlen(help_text)) / 2, "%s", help_text);
+        attroff(COLOR_PAIR(ACCENT_PAIR));
+
         refresh();
 
         int ch = getch();
-        if (ch == KEY_UP)
+
+        switch (ch)
         {
-            option = (option == 0) ? num_options - 1 : option - 1;
-        }
-        else if (ch == KEY_DOWN)
-        {
-            option = (option == num_options - 1) ? 0 : option + 1;
-        }
-        else if (ch == 10)
-        {
+        case KEY_UP:
+            selected_option = (selected_option == 0) ? num_options - 1 : selected_option - 1;
+            break;
+        case KEY_DOWN:
+            selected_option = (selected_option == num_options - 1) ? 0 : selected_option + 1;
+            break;
+        case 'q':
+        case 'Q':
+            signup_login();
+            break;
+        case 10: 
             cleanup_game_memory();
             clear();
 
-            switch (option)
+            switch (selected_option)
             {
             case 0:
                 check_save_exists(usrname);
@@ -626,6 +728,7 @@ void pre_game_menu(char usrname[])
                 signup_login();
                 break;
             }
+            break;
         }
     }
 }
@@ -735,17 +838,21 @@ void signup_login();
 void boarder()
 {
     clear();
-    curs_set(FALSE);
-    for (int i = 0; i < COLS; i++)
+    for (int i = 1; i < COLS - 1; i++)
     {
-        mvprintw(0, i, "ф");
-        mvprintw(LINES - 1, i, "ф");
+        mvprintw(1, i, "█");
+        mvprintw(LINES - 2, i, "█");
     }
-    for (int j = 0; j < LINES; j++)
+    for (int i = 2; i < LINES - 2; i++)
     {
-        mvprintw(j, 0, "ф");
-        mvprintw(j, COLS - 1, "ф");
+        mvprintw(i, 1, "█");
+        mvprintw(i, COLS - 2, "█");
     }
+
+    mvprintw(1, 1, "╔");
+    mvprintw(1, COLS - 2, "╗");
+    mvprintw(LINES - 2, 1, "╚");
+    mvprintw(LINES - 2, COLS - 2, "╝");
 }
 
 // This function is proggramed to login an existing user into the game
@@ -1068,7 +1175,6 @@ int validate_email(const char *email)
     return 1;
 }
 
-// Function to get info for a new user
 void sign_up_page()
 {
     boarder();
@@ -1230,78 +1336,105 @@ void sign_up_page()
 
 void signup_login()
 {
+    clear();
     boarder();
-    mvprintw(LINES / 8 + 1, COLS / 2 - 11, "sign up to your account");
-    mvprintw(LINES / 8 + 2, COLS / 2 - 11, "have an account? login");
-    mvprintw(LINES - 2, COLS / 2 - 9, "Press esc to quit");
-    refresh();
-    curs_set(FALSE);
-    keypad(stdscr, TRUE);
-    const char *first_menu[] = {"Sign Up", "Login", "Login as a guest", "Music Setting"};
-    int choice = 0;
-    while (1)
+
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);  // Menu text color
+    init_pair(2, COLOR_GREEN, COLOR_BLACK); // Highlight color
+    init_pair(3, COLOR_BLUE, COLOR_BLACK);  // Border color
+
+    // Fancy title art
+    const char *title_art[] = {
+        "╔══════════════════════════════════════╗",
+        "║   🎮    Game Access Terminal   🎮    ║",
+        "╚══════════════════════════════════════╝"};
+
+    // Draw title with color
+    attron(COLOR_PAIR(3) | A_BOLD);
+    for (int i = 0; i < 3; i++)
     {
+        mvprintw(i + 2, COLS / 2 - 20, "%s", title_art[i]);
+    }
+    attroff(COLOR_PAIR(3) | A_BOLD);
+
+    const char *first_menu[] = {
+        "🔐 Sign Up",
+        "🔒 Login",
+        "👤 Guest Access",
+        "🎵 Music Settings"};
+
+    keypad(stdscr, TRUE);
+    curs_set(0);
+
+    int choice = 0;
+    int quit = 0;
+
+    while (!quit)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            mvprintw(LINES / 2 + i * 2, COLS / 2 - 10, "                ");
+        }
+
+        // Draw menu with highlighting
         for (int i = 0; i < 4; i++)
         {
             if (i == choice)
             {
                 attron(A_REVERSE);
-            }
-            mvprintw(LINES / 2 + i * 2, COLS / 2 - strlen(first_menu[i]) / 2, "%s", first_menu[i]);
-            if (i == choice)
-            {
+                mvprintw(LINES / 2 + i * 2, COLS / 2 - 10, first_menu[i]);
                 attroff(A_REVERSE);
             }
+            else
+            {
+                mvprintw(LINES / 2 + i * 2, COLS / 2 - 10, first_menu[i]);
+            }
         }
+
+        attron(COLOR_PAIR(1) | A_DIM);
+        mvprintw(LINES - 4, COLS / 2 - 15, "↑ Navigate    ⏎ Select    ESC Quit");
+        attroff(COLOR_PAIR(1) | A_DIM);
+
         refresh();
+
+        // Get user input
         int ch = getch();
-        if (ch == KEY_UP)
+        switch (ch)
         {
-            if (choice == 0)
+        case KEY_UP:
+            choice = (choice == 0) ? 3 : choice - 1;
+            break;
+        case KEY_DOWN:
+            choice = (choice == 3) ? 0 : choice + 1;
+            break;
+        case 10: // ENTER key
+            switch (choice)
             {
-                choice = 3;
-            }
-            else
+            case 0:
+                sign_up_page();
+                quit = 1;
+                break;
+            case 1:
+                login_page();
+                quit = 1;
+                break;
+            case 2:
             {
-                choice--;
+                char username[] = "guest";
+                pre_game_menu(username);
+                quit = 1;
+                break;
             }
-        }
-        else if (ch == KEY_DOWN)
-        {
-            if (choice == 3)
-            {
-                choice = 0;
+            case 3:
+                music_setting(1, NULL, 0);
+                quit = 1;
+                break;
             }
-            else
-            {
-                choice++;
-            }
-        }
-        if (ch == 27)
-        {
+            break;
+        case 27: // ESC key
             clear();
             endwin();
+            exit(0);
         }
-        else if (ch == 10)
-        {
-            break;
-        }
-    }
-    if (choice == 0)
-    {
-        sign_up_page();
-    }
-    else if (choice == 1)
-    {
-        login_page();
-    }
-    else if (choice == 2)
-    {
-        char username[] = "guest";
-        pre_game_menu(username);
-    }
-    else if (choice == 3)
-    {
-        music_setting(1, NULL, 0);
     }
 }

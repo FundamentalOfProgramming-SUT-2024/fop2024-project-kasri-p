@@ -16,10 +16,14 @@ static MusicTrack playlist[] = {
     {"ELden Ring", "/Users/kasra/Desktop/songs/menu.mp3", NULL},
     {"Malenia, Blade Of Miquella", "/Users/kasra/Desktop/songs/Malenia.mp3", NULL},
     {"Radahn, The Promised Consort", "/Users/kasra/Desktop/songs/radahn.mp3", NULL},
-    {"Radagon,of The Golden Order", "/Users/kasra/Desktop/songs/radagon.mp3", NULL},
-    {"Bayle the Dread", "/path/to/epic.mp3", NULL}};
-static const int NUM_TRACKS = 5;
+    {"Jori", "/Users/kasra/Desktop/songs/jori.mp3", NULL},
+    {"Enchanted Room", "/Users/kasra/Desktop/songs/jori.mp3", NULL},
+    {"Lose Game", "/Users/kasra/Desktop/songs/jori.mp3", NULL},
+    {"Win Game", "/Users/kasra/Desktop/songs/jori.mp3", NULL}};
+
+static const int NUM_TRACKS = 6;
 static int current_track_index = 0;
+static int temp_track_index = 0;
 static bool music_initialized = false;
 static int music_volume = MIX_MAX_VOLUME;
 static bool music_enabled = true;
@@ -127,37 +131,45 @@ void draw_music_selector(int selected)
     clear();
     boarder();
 
-    attron(A_BOLD);
-    mvprintw(LINES / 4, COLS / 2 - 12, "※ Music Selection ※");
-    attroff(A_BOLD);
+    attron(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
+    mvprintw(LINES / 4 - 3, COLS / 2 - 20, "╔══════════════════════════════╗");
+    mvprintw(LINES / 4 - 2, COLS / 2 - 20, "║    🎵 Music Selection 🎵     ║");
+    mvprintw(LINES / 4 - 1, COLS / 2 - 20, "╚══════════════════════════════╝");
+    attroff(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
 
-    mvprintw(LINES / 4 + 2, COLS / 2 - 15, "Now Playing: %s",
-             playlist[current_track_index].name);
+    mvprintw(LINES / 4 + 1, COLS / 2 - 18, "┌─────────── Now Playing ───────────┐");
+    mvprintw(LINES / 4 + 2, COLS / 2 - 18, "│                                   │");
+    mvprintw(LINES / 4 + 3, COLS / 2 - 18, "│  %s", playlist[current_track_index].name);
+    mvprintw(LINES / 4 + 4, COLS / 2 - 18, "│                                   │");
+    mvprintw(LINES / 4 + 5, COLS / 2 - 18, "└───────────────────────────────────┘");
+    mvprintw(LINES / 4 + 3, COLS / 2 + 18, "|");
 
-    int start_y = LINES / 2 - NUM_TRACKS;
+    int start_y = LINES / 2 - 2;
 
-    mvprintw(start_y - 1, COLS / 2 - 20, "+----------------------------------+");
+    mvprintw(start_y - 1, COLS / 2 - 20, "┌──────────────── Track List ────────────────┐");
 
-    for (int i = 0; i < NUM_TRACKS; i++)
+    for (int i = 0; i < 4; i++)
     {
-        mvprintw(start_y + i, COLS / 2 - 20, "|");
+        mvprintw(start_y + i, COLS / 2 - 18, "│");
+
         if (i == selected)
         {
-            attron(A_REVERSE | A_BOLD);
-            mvprintw(start_y + i, COLS / 2 - 18, "♪ %-30s", playlist[i].name);
-            attroff(A_REVERSE | A_BOLD);
+            attron(A_REVERSE | A_BOLD | COLOR_PAIR(2));
+            mvprintw(start_y + i, COLS / 2 - 18, "♫ %-40s", playlist[i].name);
+            attroff(A_REVERSE | A_BOLD | COLOR_PAIR(2));
         }
         else
         {
-            mvprintw(start_y + i, COLS / 2 - 18, "  %-30s", playlist[i].name);
+            mvprintw(start_y + i, COLS / 2 - 20, "  %-40s", playlist[i].name);
         }
-        mvprintw(start_y + i, COLS / 2 + 19, "|");
     }
 
-    mvprintw(start_y + NUM_TRACKS, COLS / 2 - 20,
-             "+----------------------------------+");
+    mvprintw(start_y + 4, COLS / 2 - 20,
+             "└───────────────────────────────────────────┘");
 
-    mvprintw(LINES - 4, COLS / 2 - 20, "↑↓: Select   Enter: Play   Esc: Back");
+    mvprintw(LINES - 4, COLS / 2 - 21, "╭─────────────── Controls ───────────────╮");
+    mvprintw(LINES - 3, COLS / 2 - 21, "│  ↑↓: Select   Enter: Play   Esc: Back  │");
+    mvprintw(LINES - 2, COLS / 2 - 21, "╰────────────────────────────────────────╯");
 }
 
 void music_selector()
@@ -173,12 +185,13 @@ void music_selector()
         switch (ch)
         {
         case KEY_UP:
-            selected = (selected == 0) ? NUM_TRACKS - 1 : selected - 1;
+            selected = (selected == 0) ? 4 - 1 : selected - 1;
             break;
         case KEY_DOWN:
-            selected = (selected == NUM_TRACKS - 1) ? 0 : selected + 1;
+            selected = (selected == 4 - 1) ? 0 : selected + 1;
             break;
         case '\n':
+            temp_track_index = selected;
             play_music(selected);
             break;
         case 27: // ESC
@@ -196,51 +209,59 @@ void music_selector()
 
 void music_setting(int from, char username[], int score)
 {
+    // Enable color support
+    start_color();
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);    // Header color
+    init_pair(2, COLOR_BLACK, COLOR_CYAN);    // Highlight color
+    init_pair(3, COLOR_MAGENTA, COLOR_BLACK); // Hint text color
+
     clear();
     boarder();
 
     const char *options[] = {
-        "Toggle Music",
-        "Change Music",
-        "Volume Up",
-        "Volume Down",
-        "Back"};
+        "♪ Toggle Music",
+        "♫ Change Music",
+        "🔊 Volume Up",
+        "🔉 Volume Down",
+        "↩ Back"};
     int num_options = 5;
     int selected = 0;
 
     while (1)
     {
-        attron(A_BOLD);
+        // Stylized header
+        attron(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
         mvprintw(LINES / 4, COLS / 2 - 10, "♪ Music Settings ♪");
-        attroff(A_BOLD);
+        attroff(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
 
-        mvprintw(LINES / 4 + 2, COLS / 2 - 17, "+--------------------------------+");
-        mvprintw(LINES / 4 + 3, COLS / 2 - 17, "| Current Volume: %-14d |",
+        // Music info panel with unicode box
+        mvprintw(LINES / 4 + 2, COLS / 2 - 17, "┌──────────────────────────────┐");
+        mvprintw(LINES / 4 + 3, COLS / 2 - 17, "│ Current Volume: %-14d │",
                  (music_volume * 100) / MIX_MAX_VOLUME);
-        mvprintw(LINES / 4 + 4, COLS / 2 - 17, "| Music Status: %-16s |",
+        mvprintw(LINES / 4 + 4, COLS / 2 - 17, "│ Music Status: %-16s │",
                  Mix_PlayingMusic() ? (Mix_PausedMusic() ? "Paused" : "Playing") : "Stopped");
-        mvprintw(LINES / 4 + 5, COLS / 2 - 17, "| Current Track: %-15s | ",
+        mvprintw(LINES / 4 + 5, COLS / 2 - 17, "│ Current Track: %-15s │",
                  playlist[current_track_index].name);
-        mvprintw(LINES / 4 + 6, COLS / 2 - 17, "+--------------------------------+");
+        mvprintw(LINES / 4 + 6, COLS / 2 - 17, "└──────────────────────────────┘");
 
+        // Menu options with enhanced selection
         for (int i = 0; i < num_options; i++)
         {
             if (i == selected)
             {
-                attron(A_REVERSE | A_BOLD);
-                mvprintw(LINES / 2 + i * 2, COLS / 2 - strlen(options[i]) / 2, "► %s ◄",
-                         options[i]);
-                attroff(A_REVERSE | A_BOLD);
+                attron(A_REVERSE | A_BOLD | COLOR_PAIR(2));
+                mvprintw(LINES / 2 + i * 2, COLS / 2 - strlen(options[i]) / 2, "► %s ◄", options[i]);
+                attroff(A_REVERSE | A_BOLD | COLOR_PAIR(2));
             }
             else
             {
-                mvprintw(LINES / 2 + i * 2, COLS / 2 - strlen(options[i]) / 2, "  %s  ",
-                         options[i]);
+                mvprintw(LINES / 2 + i * 2, COLS / 2 - strlen(options[i]) / 2, "  %s  ", options[i]);
             }
         }
 
         refresh();
 
+        // Existing navigation logic remains the same
         int ch = getch();
         switch (ch)
         {
@@ -251,6 +272,7 @@ void music_setting(int from, char username[], int score)
             selected = (selected == num_options - 1) ? 0 : selected + 1;
             break;
         case '\n':
+            // Existing action logic remains the same
             switch (selected)
             {
             case 0:
@@ -269,17 +291,11 @@ void music_setting(int from, char username[], int score)
             case 4:
                 clear();
                 if (from == 1)
-                {
                     signup_login();
-                }
                 else if (from == 2)
-                {
                     pre_game_menu(username);
-                }
                 else if (from == 3)
-                {
                     pause_menu(username, hero_x, hero_y, score);
-                }
             }
             break;
         case 27:
@@ -287,34 +303,4 @@ void music_setting(int from, char username[], int score)
             return;
         }
     }
-}
-
-void cleanup_music()
-{
-    for (int i = 0; i < NUM_TRACKS; i++)
-    {
-        if (playlist[i].music != NULL)
-        {
-            Mix_FreeMusic(playlist[i].music);
-            playlist[i].music = NULL;
-        }
-    }
-
-    if (music_initialized)
-    {
-        Mix_HaltMusic();
-        Mix_CloseAudio();
-        SDL_Quit();
-        music_initialized = false;
-    }
-}
-
-void play_nightmare_music()
-{
-    const char *path = "/Users/kasra/Desktop/songs/jori.mp3";
-}
-
-void play_enchanted_music()
-{
-    const char *path = "/Users/kasra/Desktop/songs/jori.mp3";
 }

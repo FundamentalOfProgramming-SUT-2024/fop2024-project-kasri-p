@@ -7,6 +7,10 @@
 #define PROJECTILE_HIT_ENEMY 1
 #define PROJECTILE_MISSED 0
 
+WINDOW *full_map_win = NULL;
+bool show_full_map = false;
+time_t last_hit_time;
+
 bool check_final_room_victory()
 {
     if (!final_room)
@@ -61,11 +65,24 @@ int get_health_restore_multiplier()
     }
 }
 
-WINDOW *full_map_win = NULL;
-bool show_full_map = false;
+void display_trophy_ascii(int start_y, int start_x)
+{
+    // Elegant trophy ASCII art
+    mvprintw(start_y, start_x, "       ___________      ");
+    mvprintw(start_y + 1, start_x, "      '._==_==_=_.'     ");
+    mvprintw(start_y + 2, start_x, "      .-\\:      /-.    ");
+    mvprintw(start_y + 3, start_x, "     | (|:.     |) |    ");
+    mvprintw(start_y + 4, start_x, "      '-|:.     |-'     ");
+    mvprintw(start_y + 5, start_x, "        \\::.    /      ");
+    mvprintw(start_y + 6, start_x, "         '::. .'        ");
+    mvprintw(start_y + 7, start_x, "           ) (          ");
+    mvprintw(start_y + 8, start_x, "         _.' '._        ");
+    mvprintw(start_y + 9, start_x, "        '-------'       ");
+}
 
 void win_game(char username[])
 {
+    clear();
     FILE *scores = fopen("scores.txt", "r");
     FILE *temp = fopen("temp_scores.txt", "w");
     int score = (bag.gold_count) * (difficulty) + 500;
@@ -74,9 +91,53 @@ void win_game(char username[])
     bool found = false;
     char line[256];
 
-    mvprintw(HEIGHT / 2 - 2, WIDTH / 2 - 15, "CONGRATULATIONS!");
-    mvprintw(HEIGHT / 2 + 1, WIDTH / 2 - 15, "Final Score: %d", score);
-    mvprintw(HEIGHT / 2 + 3, WIDTH / 2 - 20, "Press any key to continue...");
+    start_color();
+    init_pair(1, 23, COLOR_BLACK);
+    init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(3, COLOR_WHITE, COLOR_BLACK);
+    init_pair(4, COLOR_GREEN, COLOR_BLACK);
+
+    int center_y = HEIGHT / 2;
+    int center_x = WIDTH / 2;
+
+    attron(COLOR_PAIR(1));
+    for (int i = center_x - 30; i < center_x + 30; i++)
+    {
+        mvprintw(center_y - 12, i, "═");
+        mvprintw(center_y + 12, i, "═");
+    }
+    for (int i = center_y - 12; i < center_y + 13; i++)
+    {
+        mvprintw(i, center_x - 30, "║");
+        mvprintw(i, center_x + 29, "║");
+    }
+    mvprintw(center_y - 12, center_x - 30, "╔");
+    mvprintw(center_y - 12, center_x + 29, "╗");
+    mvprintw(center_y + 12, center_x - 30, "╚");
+    mvprintw(center_y + 12, center_x + 29, "╝");
+    attroff(COLOR_PAIR(1));
+
+    attron(COLOR_PAIR(2));
+    display_trophy_ascii(center_y - 10, center_x - 11);
+    attroff(COLOR_PAIR(2));
+
+    attron(COLOR_PAIR(1) | A_BOLD);
+    mvprintw(center_y + 1, center_x - 15, "GLORIOUS VICTORY");
+    attroff(COLOR_PAIR(1) | A_BOLD);
+
+    attron(COLOR_PAIR(3));
+    mvprintw(center_y + 3, center_x - 20, "Brave Adventurer: %s", username);
+    attroff(COLOR_PAIR(3));
+
+    attron(COLOR_PAIR(4) | A_BOLD);
+    mvprintw(center_y + 5, center_x - 15, "Final Score: %d", score);
+    attroff(COLOR_PAIR(4) | A_BOLD);
+
+    attron(COLOR_PAIR(3));
+    mvprintw(center_y + 8, center_x - 20, "Press any key to continue your journey...");
+    attroff(COLOR_PAIR(3));
+
+    refresh();
 
     while (scores && fgets(line, sizeof(line), scores))
     {
@@ -107,7 +168,7 @@ void win_game(char username[])
 
     getch();
 
-    // Delete the save file
+    // Clean up save file
     char save_file[256];
     snprintf(save_file, sizeof(save_file), "%s_save.dat", username);
     remove(save_file);
@@ -117,6 +178,7 @@ void win_game(char username[])
 
 void game_over(char username[])
 {
+    clear();
     FILE *scores = fopen("scores.txt", "r");
     FILE *temp = fopen("temp_scores.txt", "w");
     int score = (bag.gold_count) * (difficulty);
@@ -125,6 +187,73 @@ void game_over(char username[])
     bool found = false;
     char line[256];
 
+    start_color();
+    init_pair(1, 23, COLOR_BLACK);
+    init_pair(2, 52, COLOR_BLACK);
+    init_pair(3, COLOR_WHITE, COLOR_BLACK);
+    init_pair(4, COLOR_RED, COLOR_BLACK);
+
+    int center_y = HEIGHT / 2;
+    int center_x = WIDTH / 2;
+
+    // Draw border
+    attron(COLOR_PAIR(1));
+    for (int i = center_x - 30; i < center_x + 30; i++)
+    {
+        mvprintw(center_y - 12, i, "═");
+        mvprintw(center_y + 12, i, "═");
+    }
+    for (int i = center_y - 12; i < center_y + 13; i++)
+    {
+        mvprintw(i, center_x - 30, "║");
+        mvprintw(i, center_x + 29, "║");
+    }
+    mvprintw(center_y - 12, center_x - 30, "╔");
+    mvprintw(center_y - 12, center_x + 29, "╗");
+    mvprintw(center_y + 12, center_x - 30, "╚");
+    mvprintw(center_y + 12, center_x + 29, "╝");
+    attroff(COLOR_PAIR(1));
+
+    // Skeleton Art
+    attron(COLOR_PAIR(2));
+    mvprintw(center_y - 10, center_x - 20, "     ,-'~~~~    ~~/  ' /_");
+    mvprintw(center_y - 9, center_x - 20, "   ,'             ``~~~%%',");
+    mvprintw(center_y - 8, center_x - 20, "  (                        Y");
+    mvprintw(center_y - 7, center_x - 20, " {                      %% I");
+    mvprintw(center_y - 6, center_x - 20, "{      -                    `.");
+    mvprintw(center_y - 5, center_x - 20, "|       ',                   )");
+    mvprintw(center_y - 4, center_x - 20, "|        |   ,..__      __. Y");
+    mvprintw(center_y - 3, center_x - 20, "|    .,_./  Y ' / ^Y   J   )|");
+    mvprintw(center_y - 2, center_x - 20, "\\           |' /   |   |   ||");
+    mvprintw(center_y - 1, center_x - 20, " \\          L_/    . _ (_,.'(");
+    mvprintw(center_y, center_x - 20, "  \\,   ,      ^^\"\"' / |      )");
+    mvprintw(center_y + 1, center_x - 20, "    \\_  \\          /,L]     /");
+    mvprintw(center_y + 2, center_x - 20, "      '-_`-,       ` `   ./`");
+    mvprintw(center_y + 3, center_x - 20, "         `-(_            )");
+    mvprintw(center_y + 4, center_x - 20, "             ^^.___,.--`");
+    attroff(COLOR_PAIR(2));
+
+    attron(COLOR_PAIR(1) | A_BOLD);
+    mvprintw(center_y + 6, center_x - 10, "GAME OVER");
+    attroff(COLOR_PAIR(1) | A_BOLD);
+
+    attron(COLOR_PAIR(3));
+    mvprintw(center_y + 8, center_x - 20, "Brave Adventurer: %s", username);
+    attroff(COLOR_PAIR(3));
+
+    // Final Score
+    attron(COLOR_PAIR(4) | A_BOLD);
+    mvprintw(center_y + 10, center_x - 15, "Final Score: %d", score);
+    attroff(COLOR_PAIR(4) | A_BOLD);
+
+    // Continue prompt
+    attron(COLOR_PAIR(3));
+    mvprintw(center_y + 12, center_x - 20, "Press any key to continue your journey...");
+    attroff(COLOR_PAIR(3));
+
+    refresh();
+
+    // Score file handling
     while (scores && fgets(line, sizeof(line), scores))
     {
         sscanf(line, "%s %d", current_username, &current_score);
@@ -152,11 +281,41 @@ void game_over(char username[])
         rename("temp_scores.txt", "scores.txt");
     }
 
+    getch();
+
+    // Clean up save file
     char save_file[256];
     snprintf(save_file, sizeof(save_file), "%s_save.dat", username);
     remove(save_file);
 
     pre_game_menu(username);
+}
+
+void check_food_changing()
+{
+    for (int i = 0; i < bag.total_foods; i++)
+    {
+        if ((time(NULL) - bag.food_pickup[i]) >= 150)
+        {
+            switch (bag.food_type[i])
+            {
+            case 1:
+                break;
+            case 2:
+                bag.food_type[i] = 1;
+                bag.food_pickup[i] = time(NULL);
+                break;
+            case 3:
+                bag.food_type[i] = 2;
+                bag.food_pickup[i] = time(NULL);
+                break;
+            case 4:
+                bag.food_type[i] = 2;
+                bag.food_pickup[i] = time(NULL);
+                break;
+            }
+        }
+    }
 }
 
 void toggle_full_map()
@@ -189,10 +348,10 @@ void toggle_full_map()
                 }
                 else if (map[i][j] == 'K')
                 {
-                    char key[] = "∆";
-                    attron(COLOR_PAIR(9));
+                    char key[5] = "∆";
+                    attron(COLOR_PAIR(167));
                     mvprintw(i, j, "%s", key);
-                    attroff(COLOR_PAIR(9));
+                    attroff(COLOR_PAIR(167));
                 }
                 else if (map[i][j] == 'b')
                 {
@@ -237,6 +396,11 @@ void toggle_full_map()
                 {
                     char crown[] = "👑";
                     mvprintw(i, j - 1, "%s", crown);
+                }
+                else if (map[i][j] == 's')
+                {
+                    char sword[] = "🔪";
+                    mvprintw(i, j - 1, "%s", sword);
                 }
                 else
                 {
@@ -343,9 +507,9 @@ void toggle_full_map()
                         else if (map[i][j] == 'K')
                         {
                             char key[5] = "∆";
-                            attron(COLOR_PAIR(9));
-                            mvprintw(i, j - 1, "%s", key);
-                            attroff(COLOR_PAIR(9));
+                            attron(COLOR_PAIR(167));
+                            mvprintw(i, j, "%s", key);
+                            attroff(COLOR_PAIR(167));
                         }
                         else if (map[i][j] == 'b')
                         {
@@ -391,6 +555,11 @@ void toggle_full_map()
                             char crown[] = "👑";
                             mvprintw(i, j - 1, "%s", crown);
                         }
+                        else if (map[i][j] == 's')
+                        {
+                            char sword[] = "🔪";
+                            mvprintw(i, j - 1, "%s", sword);
+                        }
                         else if (map[i][j] == 'm')
                         {
                             char weapon[] = "⚒︎";
@@ -427,6 +596,7 @@ void toggle_full_map()
         mvwprintw(full_map_win, 0, WIDTH / 2 - 5, " FULL MAP ");
         wrefresh(full_map_win);
         show_full_map = true;
+        wrefresh(full_map_win);
         getch();
         delwin(full_map_win);
         full_map_win = NULL;
@@ -495,6 +665,14 @@ void handle_projectile_pickup(int x, int y)
         mvprintw(0, 2, "                                                                ");
         mvprintw(0, 2, "Magic Wand picked up!");
     }
+    else if (temp_map[y][x] == 's')
+    {
+        bag.sword = true;
+        map[y][x] = '.';
+        temp_map[y][x] = '.';
+        mvprintw(0, 2, "                                                                ");
+        mvprintw(0, 2, "Sword picked up!");
+    }
 }
 
 void slow_down_enemies(int start_x, int start_y, int dx, int dy)
@@ -531,18 +709,20 @@ int fire_projectile(int start_x, int start_y, int dx, int dy, int damage, char s
            distance < max_distance && map[projectile_y + dy][projectile_x + dx] != '|' &&
            map[projectile_y + dy][projectile_x + dx] != '-' && map[projectile_y + dy][projectile_x + dx] != 'O')
     {
-        for (int i = 0; i < enemy_counts[current_floor]; i++)
+        Enemy **current_enemies = final_room ? enemies[4] : enemies[current_floor];
+        int current_enemy_count = final_room ? enemy_counts[4] : enemy_counts[current_floor];
+
+        for (int i = 0; i < current_enemy_count; i++)
         {
-            Enemy *e = enemies[current_floor][i];
-            if (e->x == projectile_x && e->y == projectile_y && e->active)
+            Enemy *e = current_enemies[i];
+            if (e && e->x == projectile_x && e->y == projectile_y && e->active)
             {
                 e->health -= damage;
                 if (e->health <= 0)
                 {
                     e->active = false;
                     map[e->y][e->x] = '.';
-                    floors[current_floor].map[e->y][e->x] = '.';
-                    // floors[current_floor].temp_map[e->y][e->x] = '.';
+                    temp_map[e->y][e->x] = '.';
                     mvprintw(0, 60, "Enemy defeated!");
                 }
                 hit_enemy = true;
@@ -571,37 +751,72 @@ int fire_projectile(int start_x, int start_y, int dx, int dy, int damage, char s
     return hit_enemy ? PROJECTILE_HIT_ENEMY : PROJECTILE_MISSED;
 }
 
-void handle_mace_attack()
+void handle_sword_attack()
 {
     bool hit = false;
     last_dy = 0;
     last_dx = 0;
+
+    Enemy **current_enemies = final_room ? enemies[4] : enemies[current_floor];
+    int current_enemy_count = final_room ? enemy_counts[4] : enemy_counts[current_floor];
+
     for (int dy = -1; dy <= 1; dy++)
     {
         for (int dx = -1; dx <= 1; dx++)
         {
             if (dx == 0 && dy == 0)
-            {
                 continue;
-            }
             int new_x = hero_x + dx;
             int new_y = hero_y + dy;
-            if (map[new_y][new_x] == 'D' || map[new_y][new_x] == 'F' || map[new_y][new_x] == 'G' || map[new_y][new_x] == 'S' || map[new_y][new_x] == 'U')
+
+            for (int i = 0; i < current_enemy_count; i++)
             {
-                for (int i = 0; i < enemy_counts[current_floor]; i++)
+                Enemy *e = current_enemies[i];
+                if (e && e->active && e->x == new_x && e->y == new_y)
                 {
-                    Enemy *e = enemies[current_floor][i];
-
-                    if (e == NULL || !e->active || e->health <= 0 || !e->can_move)
+                    int multiplier = get_damage_multiplier();
+                    hit = true;
+                    e->health -= 10 * multiplier;
+                    if (e->health <= 0)
                     {
-                        continue;
+                        e->active = false;
+                        map[e->y][e->x] = '.';
+                        temp_map[e->y][e->x] = '.';
+                        mvprintw(0, 2, "                                                        ");
+                        mvprintw(0, 60, "Enemy defeated!");
                     }
+                    break;
+                }
+            }
+        }
+    }
+    mvprintw(0, 2, "                                                        ");
+    mvprintw(0, 20, "Sword attack%s!", hit ? "" : " missed");
+}
 
-                    if (e->y < 0 || e->y >= HEIGHT || e->x < 0 || e->x >= WIDTH)
-                    {
-                        continue;
-                    }
+void handle_mace_attack()
+{
+    bool hit = false;
+    last_dy = 0;
+    last_dx = 0;
 
+    Enemy **current_enemies = final_room ? enemies[4] : enemies[current_floor];
+    int current_enemy_count = final_room ? enemy_counts[4] : enemy_counts[current_floor];
+
+    for (int dy = -1; dy <= 1; dy++)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            if (dx == 0 && dy == 0)
+                continue;
+            int new_x = hero_x + dx;
+            int new_y = hero_y + dy;
+
+            for (int i = 0; i < current_enemy_count; i++)
+            {
+                Enemy *e = current_enemies[i];
+                if (e && e->active && e->health > 0 && e->can_move)
+                {
                     if (e->x == new_x && e->y == new_y)
                     {
                         hit = true;
@@ -611,8 +826,7 @@ void handle_mace_attack()
                         {
                             e->active = false;
                             map[e->y][e->x] = '.';
-                            floors[current_floor].map[e->y][e->x] = '.';
-                            // floors[current_floor].temp_map[e->y][e->x] = '.';
+                            temp_map[e->y][e->x] = '.';
                             mvprintw(0, 60, "Enemy defeated!");
                         }
                         break;
@@ -836,48 +1050,6 @@ void handle_arrow_attack()
     }
 }
 
-void handle_sword_attack()
-{
-    bool hit = false;
-    last_dy = 0;
-    last_dx = 0;
-    for (int dy = -1; dy <= 1; dy++)
-    {
-        for (int dx = -1; dx <= 1; dx++)
-        {
-            if (dx == 0 && dy == 0)
-                continue;
-            int new_x = hero_x + dx;
-            int new_y = hero_y + dy;
-            if (map[new_y][new_x] == 'D' || map[new_y][new_x] == 'F' || map[new_y][new_x] == 'G' || map[new_y][new_x] == 'S' || map[new_y][new_x] == 'U')
-            {
-                for (int i = 0; i < enemy_counts[current_floor]; i++)
-                {
-                    Enemy *e = enemies[current_floor][i];
-                    if (e->x == new_x && e->y == new_y)
-                    {
-                        int multiplier = get_damage_multiplier();
-                        hit = true;
-                        e->health -= 10 * multiplier;
-                        if (e->health <= 0)
-                        {
-                            e->active = false;
-                            map[e->y][e->x] = '.';
-                            floors[current_floor].map[e->y][e->x] = '.';
-                            floors[current_floor].temp_map[e->y][e->x] = '.';
-                            mvprintw(0, 2, "                                                        ");
-                            mvprintw(0, 60, "Enemy defeated!");
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    mvprintw(0, 2, "                                                        ");
-    mvprintw(0, 20, "Sword attack%s!", hit ? "" : " missed");
-}
-
 void replay_last_attack()
 {
     if (last_dx == 0 && last_dy == 0)
@@ -984,9 +1156,34 @@ void eat_food()
 {
     if (bag.total_foods > 0)
     {
-        hunger = 0;
+        int food_type = bag.food_type[bag.total_foods - 1];
         bag.total_foods--;
-        mvprintw(0, 2, "Food eaten! Hunger->0");
+
+        switch (food_type)
+        {
+        case 1:
+            mvprintw(0, 2, "Spoiled food eaten! Hunger +20");
+            hunger += 20;
+            break;
+        case 2:
+            mvprintw(0, 2, "Normal food eaten! Hunger->0");
+            hunger = 0;
+            break;
+        case 3:
+            mvprintw(0, 2, "Magical food eaten! Hunger->0, damage boosted");
+            hunger = 0;
+            damage_spell_end_time += 10;
+            break;
+        case 4:
+            mvprintw(0, 2, "Special food eaten! Hunger->0, speed boosted");
+            hunger = 0;
+            speed_spell_end_time += 10;
+            break;
+        default:
+            mvprintw(0, 2, "Unknown food type! No effect.");
+            break;
+        }
+
         pthread_t tid;
         pthread_create(&tid, NULL, clear_msg, NULL);
         pthread_detach(tid);
@@ -1022,6 +1219,33 @@ void open_weapon_window()
 
         for (int i = 0; i < num_weapons; i++)
         {
+            if (bag.dagger_count == 0)
+            {
+                bag.dagger = false;
+            }
+            else
+            {
+                bag.dagger = true;
+            }
+
+            if (bag.arrow_count == 0)
+            {
+                bag.normal_arrow = false;
+            }
+            else
+            {
+                bag.normal_arrow = true;
+            }
+
+            if (bag.wand_count == 0)
+            {
+                bag.magic_wand = false;
+            }
+            else
+            {
+                bag.wand_count = true;
+            }
+
             bool has_weapon = (i == 0) ? bag.mace : (i == 1) ? bag.dagger
                                                 : (i == 2)   ? bag.magic_wand
                                                 : (i == 3)   ? bag.normal_arrow
@@ -1031,7 +1255,17 @@ void open_weapon_window()
                 wattron(weapon_win, A_REVERSE);
 
             wattron(weapon_win, COLOR_PAIR(has_weapon ? 10 : 11));
-            mvwprintw(weapon_win, i + 2, 2, "%s", weapons[i]);
+
+            // Display weapon with its count
+            if (i == 1) // Dagger
+                mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.dagger_count);
+            else if (i == 2) // Magical Wand
+                mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.wand_count);
+            else if (i == 3) // Normal Arrow
+                mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.arrow_count);
+            else
+                mvwprintw(weapon_win, i + 2, 2, "%s", weapons[i]);
+
             wattroff(weapon_win, COLOR_PAIR(has_weapon ? 10 : 11));
 
             if (i == selected)
@@ -1134,19 +1368,31 @@ void open_spell_window()
 
 void create_final_room()
 {
+    clear();
+    current_floor = 4;
     final_room = true;
-    cleanup_game_memory();
-    map = malloc(HEIGHT * sizeof(char *));
-    temp_map = malloc(HEIGHT * sizeof(char *));
-    discovered_map = malloc(HEIGHT * sizeof(char *));
-    current_floor++;
 
-    for (int i = 0; i < HEIGHT; i++)
+    for (int i = 0; i < MAX_ENEMIES_PER_FLOOR; i++)
     {
-        map[i] = malloc(WIDTH * sizeof(char));
-        temp_map[i] = malloc(WIDTH * sizeof(char));
-        discovered_map[i] = malloc(WIDTH * sizeof(char));
+        if (enemies[4][i] != NULL)
+        {
+            free(enemies[4][i]);
+            enemies[4][i] = NULL;
+        }
     }
+    enemy_counts[4] = 0;
+
+    if (map == NULL)
+    {
+        initialize_map();
+    }
+
+    int room_width = 30;
+    int room_height = 20;
+    int start_x = (WIDTH - room_width) / 2;
+    int start_y = (HEIGHT - room_height) / 2;
+    int end_x = start_x + room_width;
+    int end_y = start_y + room_height;
 
     for (int y = 0; y < HEIGHT; y++)
     {
@@ -1154,120 +1400,93 @@ void create_final_room()
         {
             map[y][x] = ' ';
             temp_map[y][x] = ' ';
-            discovered_map[y][x] = 0;
         }
     }
 
-    int room_width = WIDTH - 30;
-    int room_height = HEIGHT - 10;
-    int room_x = (WIDTH - room_width) / 2;
-    int room_y = (HEIGHT - room_height) / 2;
-
-    for (int x = room_x; x < room_x + room_width; x++)
+    for (int y = start_y; y <= end_y; y++)
     {
-        map[room_y][x] = '-';
-        map[room_y + room_height - 1][x] = '-';
-    }
-    for (int y = room_y; y < room_y + room_height; y++)
-    {
-        map[y][room_x] = '|';
-        map[y][room_x + room_width - 1] = '|';
-    }
-
-    for (int y = room_y + 1; y < room_y + room_height - 1; y++)
-    {
-        for (int x = room_x + 1; x < room_x + room_width - 1; x++)
+        for (int x = start_x; x <= end_x; x++)
         {
-            map[y][x] = '.';
-        }
-    }
-    for (int y = room_y + 1; y < room_y + room_height - 1; y++)
-    {
-        for (int x = room_x + 1; x < room_x + room_width - 1; x++)
-        {
+            if (y == start_y || y == end_y)
+            {
+                map[y][x] = '-';
+            }
+            else if (x == start_x || x == end_x)
+            {
+                map[y][x] = '|';
+            }
+            else
+            {
+                map[y][x] = '.';
+            }
+            discovered_map[y][x] = 1;
             temp_map[y][x] = map[y][x];
         }
     }
 
-    int num_enemies = 15;
+    int center_x = start_x + (room_width / 2);
+    int center_y = start_y + (room_height / 2);
 
-    for (int i = 0; i < num_enemies; i++)
+    for (int i = 0; i < 2; i++)
     {
-        int enemy_x = room_x + 2 + rand() % (room_width - 4);
-        int enemy_y = room_y + 2 + rand() % (room_height - 4);
+        Enemy *e = calloc(1, sizeof(Enemy));
+        if (e == NULL)
+            continue;
 
-        if (map[enemy_y][enemy_x] == '.')
+        e->active = true;
+        e->health = 40;
+        e->can_move = true;
+
+        int type = rand() % 5;
+        switch (type)
         {
-            int type = rand() % 5;
-            char enemy_symbol;
-            int enemy_health, enemy_damage;
-            EnemyAbility enemy_ability;
-            enemy_ability = NULL;
-            switch (type)
-            {
-            case 0:
-                enemy_symbol = 'D';
-                enemy_health = 5;
-                enemy_damage = 2;
-                break;
-            case 1:
-                enemy_symbol = 'F';
-                enemy_health = 10;
-                enemy_damage = 4;
-                break;
-            case 2:
-                enemy_symbol = 'G';
-                enemy_health = 15;
-                enemy_damage = 5;
-                break;
-            case 3:
-                enemy_symbol = 'S'; // Serpent
-                enemy_health = 20;
-                enemy_damage = 6;
-                break;
-            case 4:
-                enemy_symbol = 'U'; // Undead
-                enemy_health = 30;
-                enemy_damage = 8;
-                enemy_ability = undead_ability;
-                break;
-            }
-
-            // map[enemy_y][enemy_x] = enemy_symbol;
-
-            if (enemy_counts[4] < MAX_ENEMIES_PER_FLOOR)
-            {
-                enemies[4][enemy_counts[4]] = (Enemy *)malloc(sizeof(Enemy));
-                if (enemies[4][enemy_counts[4]] != NULL)
-                {
-                    enemies[4][enemy_counts[4]]->symbol = enemy_symbol;
-                    enemies[4][enemy_counts[4]]->x = enemy_x;
-                    enemies[4][enemy_counts[4]]->y = enemy_y;
-                    enemies[4][enemy_counts[4]]->health = enemy_health;
-                    enemies[4][enemy_counts[4]]->damage = enemy_damage;
-                    enemies[4][enemy_counts[4]]->active = true;
-                    enemies[4][enemy_counts[4]]->special_ability = enemy_ability;
-                    enemies[4][enemy_counts[4]]->moves_made = 0;
-                    enemies[4][enemy_counts[4]]->can_move = true;
-
-                    enemy_counts[4]++;
-                }
-            }
+        case 0:
+            e->symbol = 'D';
+            e->damage = 2;
+            e->health = 5;
+            break;
+        case 1:
+            e->symbol = 'F';
+            e->damage = 4;
+            e->health = 10;
+            break;
+        case 2:
+            e->symbol = 'G';
+            e->damage = 5;
+            e->health = 15;
+            break;
+        case 3:
+            e->symbol = 'S';
+            e->damage = 6;
+            e->health = 20;
+            break;
+        case 4:
+            e->symbol = 'U';
+            e->damage = 8;
+            e->health = 30;
+            e->special_ability = undead_ability;
+            break;
         }
+
+        double angle = (2 * M_PI * i) / 8;
+        int radius = 4;
+        e->x = center_x + (int)(radius * cos(angle));
+        e->y = center_y + (int)(radius * sin(angle));
+
+        e->x = (e->x < start_x + 1) ? start_x + 1 : (e->x >= end_x - 1 ? end_x - 1 : e->x);
+        e->y = (e->y < start_y + 1) ? start_y + 1 : (e->y >= end_y - 1 ? end_y - 1 : e->y);
+        e->active = true;
+
+        map[e->y][e->x] = e->symbol;
+        enemies[4][enemy_counts[4]++] = e;
     }
 
-    for (int y = room_y; y < room_y + room_height; y++)
-    {
-        for (int x = room_x; x < room_x + room_width; x++)
-        {
-            discovered_map[y][x] = 1;
-        }
-    }
-    hero_x = room_x + 1;
-    hero_y = room_y + 1;
+    hero_x = center_x;
+    hero_y = center_y + 5; // Place a bit below center
+    map[hero_y][hero_x] = '@';
+
     draw_map();
-    draw_enemies();
-    update_enemies();
+    refresh();
 }
 
 void *clear_security_mode()
@@ -1343,8 +1562,14 @@ void open_pass_window(int current_floor, int current_room)
                     wattron(pass_win, COLOR_PAIR(72));
                     floors[current_floor].rooms[current_room].sec_level = 0;
                     floors[current_floor].rooms[current_room].is_room_locked = false;
-                    bag.has_ancient_key = false;
-                    bag.broke_key = true;
+                    bag.has_ancient_key -= 1;
+                    bag.broke_key += 1;
+                    if (bag.broke_key >= 2)
+                    {
+                        bag.broke_key -= 2;
+                        bag.has_ancient_key += 1;
+                        mvprintw(0, COLS / 2 + 5, "Ancient key made!");
+                    }
                     wrefresh(pass_win);
                     napms(1000);
                     break;
@@ -1484,8 +1709,6 @@ void choose_difficulty()
     }
 }
 
-time_t last_hit_time;
-
 void init_health_system()
 {
     health = 100;
@@ -1541,9 +1764,6 @@ void init_health(char username[])
     if (health <= 0)
     {
         clear();
-        mvprintw(LINES / 2, COLS / 2 - 10, "GAME OVER - You Died");
-        refresh();
-        getch();
         game_over(username);
     }
 }
@@ -1600,7 +1820,7 @@ void *clear_password_after_delay(void *arg)
     sleep(30);
     refresh();
     for (int i = 0; i < WIDTH; i++)
-        mvprintw(LINES - 1, COLS / 2 - 10, "                       ");
+        mvprintw(0, COLS / 2 + 20, "                       ");
     refresh();
 
     return NULL;
@@ -1609,11 +1829,13 @@ void *clear_password_after_delay(void *arg)
 int reverse_number(int num)
 {
     int reversed = 0;
-    while (num > 0)
+
+    while (num != 0)
     {
         reversed = reversed * 10 + (num % 10);
         num /= 10;
     }
+
     return reversed;
 }
 
@@ -1623,17 +1845,17 @@ void generate_pass(int current_floor, int current_room)
     refresh();
     int password = room_pass_generator();
     int shown_password;
-    // if (floors[current_floor].rooms[current_room].is_room_old)
-    // {
-    //     shown_password = reverse_number(shown_password);
-    // }
-    // else
+    if (floors[current_floor].rooms[current_room].is_room_old)
+    {
+        shown_password = reverse_number(password);
+    }
+    else
     {
         shown_password = password;
     }
     floors[current_floor].rooms[current_room].password = password;
 
-    mvprintw(0, COLS / 2 - 10, "Room Password: %d", shown_password);
+    mvprintw(0, COLS / 2 + 20, "Room Password: %d", shown_password);
     refresh();
 
     pthread_t tid;
@@ -1756,7 +1978,8 @@ void move_special(char c)
                map[hero_y + dy][hero_x + dx] != 'W' &&
                map[hero_y + dy][hero_x + dx] != '"' &&
                map[hero_y + dy][hero_x + dx] != 'd' &&
-               map[hero_y + dy][hero_x + dx] != 'H')
+               map[hero_y + dy][hero_x + dx] != 'H' &&
+               map[hero_y + dy][hero_x + dx] != '%')
         {
             map[hero_y][hero_x] = temp_map[hero_y][hero_x];
             hero_x += dx;
@@ -1850,6 +2073,8 @@ void continue_game(char username[])
         bag.has_ancient_key = true;
         hit_damage();
         init_health(username);
+        check_food_changing();
+
         if (check_final_room_victory())
         {
             win_game(username);
@@ -2033,7 +2258,10 @@ void continue_game(char username[])
             {
                 mvprintw(0, 2, "                    ");
                 mvprintw(0, 2, "Food picked up!");
+                bag.food_pickup[bag.total_foods] = time(NULL);
+                bag.food_type[bag.total_foods] = rand() % 3 + 1;
                 bag.total_foods++;
+
                 temp_map[hero_y][hero_x] = '.';
                 map[hero_y][hero_x] = '.';
 
@@ -2045,6 +2273,18 @@ void continue_game(char username[])
             {
                 mvprintw(0, 2, "                        ");
                 mvprintw(0, 2, "Bag of foods is full");
+                pthread_t tid1;
+                pthread_create(&tid1, NULL, clear_msg, NULL);
+                pthread_detach(tid1);
+            }
+            else if (temp_map[hero_y][hero_x] == 's')
+            {
+                bag.sword = true;
+                mvprintw(0, 2, "                    ");
+                mvprintw(0, 2, "Sword picked up!");
+                temp_map[hero_y][hero_x] = '.';
+                map[hero_y][hero_x] = '.';
+
                 pthread_t tid1;
                 pthread_create(&tid1, NULL, clear_msg, NULL);
                 pthread_detach(tid1);
@@ -2125,7 +2365,8 @@ void continue_game(char username[])
             map[new_y][new_x] == '*' || map[new_y][new_x] == '@' ||
             map[new_y][new_x] == 'W' || map[new_y][new_x] == 'a' ||
             map[new_y][new_x] == 'A' || map[new_y][new_x] == 'd' ||
-            map[new_y][new_x] == '"' || map[new_y][new_x] == 'C')
+            map[new_y][new_x] == '"' || map[new_y][new_x] == 'C' ||
+            map[new_y][new_x] == 's')
         {
             if (temp_map[new_y][new_x] == '$')
             {
@@ -2173,7 +2414,7 @@ void continue_game(char username[])
                 mvprintw(0, 2, "                    ");
 
                 mvprintw(0, 2, "Ancient Key Added to Your Bag");
-                bag.has_ancient_key = true;
+                bag.has_ancient_key += 1;
 
                 map[hero_y][hero_x] = '.';
 
@@ -2228,7 +2469,6 @@ void continue_game(char username[])
                 hero_y = new_y;
                 map[hero_y][hero_x] = '@';
             }
-            //----------
             if (!final_room)
             {
                 int current_room = -1;
@@ -2277,7 +2517,6 @@ void continue_game(char username[])
                         floors[current_floor].floor_discovered = true;
                     }
                 }
-                // ------------
                 if (current_room != -1 && floors[current_floor].rooms[current_room].is_room_nightmare)
                 {
                     Room room = floors[current_floor].rooms[current_room];
@@ -2331,7 +2570,6 @@ void continue_game(char username[])
                     }
                 }
             }
-            //----------
         }
 
         draw_map();
@@ -2368,19 +2606,19 @@ void maps(char username[])
     }
 
     draw_map();
-    for (int i = 0; i < HEIGHT; i++)
-    {
-        for (int j = 0; j < WIDTH; j++)
-        {
-            temp_map[i][j] = map[i][j];
-        }
-    }
 
     for (int i = 0; i < HEIGHT; i++)
     {
         for (int j = 0; j < WIDTH; j++)
         {
             temp_map[i][j] = floors[current_floor].temp_map[i][j];
+        }
+    }
+    for (int i = 0; i < HEIGHT; i++)
+    {
+        for (int j = 0; j < WIDTH; j++)
+        {
+            temp_map[i][j] = map[i][j];
         }
     }
     srand(time(NULL));
@@ -2400,17 +2638,17 @@ void maps(char username[])
     initialize_enemies();
     while (1)
     {
+        check_food_changing();
         update_enemies();
         bag.has_ancient_key = true;
         hit_damage();
         init_health(username);
-
-        draw_map();
-        ch = getch();
         if (check_final_room_victory())
         {
             win_game(username);
         }
+        draw_map();
+        ch = getch();
         if (ch == 27)
         {
             pause_menu(username, hero_x, hero_y, score);
@@ -2519,7 +2757,7 @@ void maps(char username[])
                 hero_x = floors[current_floor].rooms[5].up_stair_x;
                 switch_floor();
                 map[hero_y][hero_x] = '@';
-                init_health_system(); // Add this line
+                init_health_system();
                 draw_map();
                 mvaddch(hero_y, hero_x, '@');
                 new_x = hero_x;
@@ -2531,6 +2769,7 @@ void maps(char username[])
             create_final_room();
             current_floor = 3;
             draw_enemies();
+            update_enemies();
         }
 
         if (ch == 10)
@@ -2538,7 +2777,7 @@ void maps(char username[])
 
             if (temp_map[hero_y][hero_x] == 'd' || map[new_y][new_x] == 'D' ||
                 temp_map[hero_y][hero_x] == 'a' || temp_map[hero_y][hero_x] == 'A' ||
-                temp_map[hero_y][hero_x] == '*' || temp_map[hero_y][hero_x] == 'W')
+                temp_map[hero_y][hero_x] == '*' || temp_map[hero_y][hero_x] == 'W' || temp_map[hero_y][hero_x] == 's')
             {
                 handle_projectile_pickup(hero_x, hero_y);
             }
@@ -2595,7 +2834,10 @@ void maps(char username[])
             {
                 mvprintw(0, 2, "                    ");
                 mvprintw(0, 2, "Food picked up!");
+                bag.food_pickup[bag.total_foods] = time(NULL);
+                bag.food_type[bag.total_foods] = rand() % 3 + 1;
                 bag.total_foods++;
+
                 temp_map[hero_y][hero_x] = '.';
                 map[hero_y][hero_x] = '.';
 
@@ -2607,6 +2849,17 @@ void maps(char username[])
             {
                 mvprintw(0, 2, "                        ");
                 mvprintw(0, 2, "Bag of foods is full");
+                pthread_t tid1;
+                pthread_create(&tid1, NULL, clear_msg, NULL);
+                pthread_detach(tid1);
+            }
+            else if (temp_map[hero_y][hero_x] == 's') {
+                bag.sword = true;
+                mvprintw(0, 2, "                    ");
+                mvprintw(0, 2, "Sword picked up!");
+                temp_map[hero_y][hero_x] = '.';
+                map[hero_y][hero_x] = '.';
+
                 pthread_t tid1;
                 pthread_create(&tid1, NULL, clear_msg, NULL);
                 pthread_detach(tid1);
@@ -2687,7 +2940,8 @@ void maps(char username[])
             map[new_y][new_x] == '*' || map[new_y][new_x] == '@' ||
             map[new_y][new_x] == 'W' || map[new_y][new_x] == 'a' ||
             map[new_y][new_x] == 'A' || map[new_y][new_x] == 'd' ||
-            map[new_y][new_x] == '"' || map[new_y][new_x] == 'C')
+            map[new_y][new_x] == '"' || map[new_y][new_x] == 'C' || 
+            map[new_y][new_x] == 's')
         {
             if (temp_map[new_y][new_x] == '$')
             {
@@ -2735,7 +2989,7 @@ void maps(char username[])
                 mvprintw(0, 2, "                    ");
 
                 mvprintw(0, 2, "Ancient Key Added to Your Bag");
-                bag.has_ancient_key = true;
+                bag.has_ancient_key += 1;
 
                 map[hero_y][hero_x] = '.';
 
@@ -2774,8 +3028,9 @@ void maps(char username[])
                 temp_map[new_y][new_x] = '?';
                 hero_x = new_x;
                 hero_y = new_y;
-
                 map[hero_y][hero_x] = '@';
+                temp_map[hero_y][hero_x] = floors[current_floor].temp_map[hero_y][hero_x];
+                // map[hero_y][hero_x] = '@';
 
                 draw_map();
                 refresh();
@@ -2792,109 +3047,133 @@ void maps(char username[])
                 hero_x = new_x;
                 hero_y = new_y;
                 map[hero_y][hero_x] = '@';
+                add_hero(hero_y, hero_x);
             }
-            //----------
-            if(!final_room)
-            {int current_room = -1;
-            for (int i = 0; i < floors[current_floor].num_rooms; i++)
+            if (!final_room)
             {
-                if (hero_x >= floors[current_floor].rooms[i].x &&
-                    hero_x < floors[current_floor].rooms[i].x + floors[current_floor].rooms[i].width &&
-                    hero_y >= floors[current_floor].rooms[i].y &&
-                    hero_y < floors[current_floor].rooms[i].y + floors[current_floor].rooms[i].height)
+                int current_room = -1;
+                for (int i = 0; i < floors[current_floor].num_rooms; i++)
                 {
-                    current_room = i;
-                    break;
-                }
-            }
-            if (floors[current_floor].rooms[current_room].is_room_enchanted)
-            {
-                health -= 1;
-            }
-            if (old_room != current_room && old_room != -1)
-            {
-                if (floors[current_floor].rooms[old_room].is_room_nightmare)
-                {
-                    Room *old_room_ptr = &floors[current_floor].rooms[old_room];
-                    for (int y = old_room_ptr->y; y < old_room_ptr->y + old_room_ptr->height; y++)
+                    if (hero_x >= floors[current_floor].rooms[i].x &&
+                        hero_x < floors[current_floor].rooms[i].x + floors[current_floor].rooms[i].width &&
+                        hero_y >= floors[current_floor].rooms[i].y &&
+                        hero_y < floors[current_floor].rooms[i].y + floors[current_floor].rooms[i].height)
                     {
-                        for (int x = old_room_ptr->x; x < old_room_ptr->x + old_room_ptr->width; x++)
+                        current_room = i;
+                        break;
+                    }
+                }
+                if (floors[current_floor].rooms[current_room].is_room_enchanted)
+                {
+                    health -= 1;
+
+                    if (current_track_index != 4)
+                    {
+                        temp_track_index = current_track_index;
+                        play_music(4);
+                    }
+                }
+                if (old_room != current_room && old_room != -1)
+                {
+
+                    if (floors[current_floor].rooms[old_room].is_room_enchanted)
+                    {
+                        // Revert to original music
+                        play_music(temp_track_index); // Original game music
+                    }
+
+                    if (floors[current_floor].rooms[old_room].is_room_nightmare)
+                    {
+                        Room *old_room_ptr = &floors[current_floor].rooms[old_room];
+                        for (int y = old_room_ptr->y; y < old_room_ptr->y + old_room_ptr->height; y++)
+                        {
+                            for (int x = old_room_ptr->x; x < old_room_ptr->x + old_room_ptr->width; x++)
+                            {
+                                discovered_map[y][x] = 0;
+                            }
+                        }
+
+                        play_music(temp_track_index);
+                    }
+                }
+                old_room = current_room;
+                if (current_room != -1 && !floors[current_floor].rooms[current_room].is_room_nightmare)
+                {
+                    Room room = floors[current_floor].rooms[current_room];
+                    for (int y = room.y; y < room.y + room.height; y++)
+                    {
+                        for (int x = room.x; x < room.x + room.width; x++)
+                        {
+                            discovered_map[y][x] = 1;
+                        }
+                    }
+                    if (current_room == 5)
+                    {
+                        floors[current_floor].floor_discovered = true;
+                    }
+                }
+                if (current_room != -1 && floors[current_floor].rooms[current_room].is_room_nightmare)
+                {
+                    if (current_track_index != 3) // Assuming the 3rd track is for nightmare rooms
+                    {
+                        if (current_track_index != 4 || current_track_index != 3)
+                        {
+                            temp_track_index = current_track_index;
+                        }
+                        play_music(3); // Nightmare room music
+                    }
+
+                    Room room = floors[current_floor].rooms[current_room];
+                    for (int y = room.y; y < room.y + room.height; y++)
+                    {
+                        for (int x = room.x; x < room.x + room.width; x++)
                         {
                             discovered_map[y][x] = 0;
                         }
                     }
-                }
-            }
-            old_room = current_room;
-            if (current_room != -1 && !floors[current_floor].rooms[current_room].is_room_nightmare)
-            {
-                Room room = floors[current_floor].rooms[current_room];
-                for (int y = room.y; y < room.y + room.height; y++)
-                {
-                    for (int x = room.x; x < room.x + room.width; x++)
-                    {
-                        discovered_map[y][x] = 1;
-                    }
-                }
-                if (current_room == 5)
-                {
-                    floors[current_floor].floor_discovered = true;
-                }
-            }
-            // ------------
-            if (current_room != -1 && floors[current_floor].rooms[current_room].is_room_nightmare)
-            {
-                Room room = floors[current_floor].rooms[current_room];
-                for (int y = room.y; y < room.y + room.height; y++)
-                {
-                    for (int x = room.x; x < room.x + room.width; x++)
-                    {
-                        discovered_map[y][x] = 0;
-                    }
-                }
 
-                for (int dy = -2; dy <= 2; dy++)
-                {
-                    for (int dx = -2; dx <= 2; dx++)
+                    for (int dy = -2; dy <= 2; dy++)
                     {
-                        int check_x = hero_x + dx;
-                        int check_y = hero_y + dy;
-
-                        if (check_x >= room.x && check_x < room.x + room.width &&
-                            check_y >= room.y && check_y < room.y + room.height)
+                        for (int dx = -2; dx <= 2; dx++)
                         {
-                            discovered_map[check_y][check_x] = 1;
+                            int check_x = hero_x + dx;
+                            int check_y = hero_y + dy;
+
+                            if (check_x >= room.x && check_x < room.x + room.width &&
+                                check_y >= room.y && check_y < room.y + room.height)
+                            {
+                                discovered_map[check_y][check_x] = 1;
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                int discover_radius = 1;
-                for (int dy = -discover_radius; dy <= discover_radius; dy++)
+                else
                 {
-                    for (int dx = -discover_radius; dx <= discover_radius; dx++)
+                    int discover_radius = 1;
+                    for (int dy = -discover_radius; dy <= discover_radius; dy++)
                     {
-                        int check_x = hero_x + dx;
-                        int check_y = hero_y + dy;
-
-                        if (check_x >= 0 && check_x < WIDTH &&
-                            check_y >= 0 && check_y < HEIGHT)
+                        for (int dx = -discover_radius; dx <= discover_radius; dx++)
                         {
-                            discovered_map[check_y][check_x] = 1;
+                            int check_x = hero_x + dx;
+                            int check_y = hero_y + dy;
+
+                            if (check_x >= 0 && check_x < WIDTH &&
+                                check_y >= 0 && check_y < HEIGHT)
+                            {
+                                discovered_map[check_y][check_x] = 1;
+                            }
                         }
                     }
                 }
-            }
 
-            for (int y = 0; y < HEIGHT; y++)
-            {
-                for (int x = 0; x < WIDTH; x++)
+                for (int y = 0; y < HEIGHT; y++)
                 {
-                    floors[current_floor].discovered_map[y][x] = discovered_map[y][x];
+                    for (int x = 0; x < WIDTH; x++)
+                    {
+                        floors[current_floor].discovered_map[y][x] = discovered_map[y][x];
+                    }
                 }
-            }}
-            //----------
+            }
         }
 
         draw_map();
