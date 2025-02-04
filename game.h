@@ -1255,12 +1255,11 @@ void open_weapon_window()
 
             wattron(weapon_win, COLOR_PAIR(has_weapon ? 10 : 11));
 
-        
-            if (i == 1) 
+            if (i == 1)
                 mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.dagger_count);
-            else if (i == 2) 
+            else if (i == 2)
                 mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.wand_count);
-            else if (i == 3) 
+            else if (i == 3)
                 mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.arrow_count);
             else
                 mvwprintw(weapon_win, i + 2, 2, "%s", weapons[i]);
@@ -1386,7 +1385,7 @@ void create_final_room()
         initialize_map();
     }
 
-    int room_width = 30;
+    int room_width = 40;
     int room_height = 20;
     int start_x = (WIDTH - room_width) / 2;
     int start_y = (HEIGHT - room_height) / 2;
@@ -1426,7 +1425,7 @@ void create_final_room()
     int center_x = start_x + (room_width / 2);
     int center_y = start_y + (room_height / 2);
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 4; i++)
     {
         Enemy *e = calloc(1, sizeof(Enemy));
         if (e == NULL)
@@ -1480,8 +1479,9 @@ void create_final_room()
         enemies[4][enemy_counts[4]++] = e;
     }
 
-    hero_x = center_x;
-    hero_y = center_y + 5;
+    hero_x = start_x + 1;
+    hero_y = start_y + 1;
+
     map[hero_y][hero_x] = '@';
 
     draw_map();
@@ -2459,6 +2459,8 @@ void continue_game(char username[])
             else if (temp_map[new_y][new_x] == 'C')
             {
                 create_final_room();
+                new_x = hero_x;
+                new_y = hero_y;
             }
             else
             {
@@ -3076,8 +3078,8 @@ void maps(char username[])
 
                     if (floors[current_floor].rooms[old_room].is_room_enchanted)
                     {
-                        
-                        play_music(temp_track_index); 
+
+                        play_music(temp_track_index);
                     }
 
                     if (floors[current_floor].rooms[old_room].is_room_nightmare)
@@ -3112,7 +3114,7 @@ void maps(char username[])
                 }
                 if (current_room != -1 && floors[current_floor].rooms[current_room].is_room_nightmare)
                 {
-                    if (current_track_index != 3) 
+                    if (current_track_index != 3)
                     {
                         if (current_track_index != 4 || current_track_index != 3)
                         {
