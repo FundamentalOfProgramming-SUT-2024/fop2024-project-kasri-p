@@ -67,7 +67,6 @@ int get_health_restore_multiplier()
 
 void display_trophy_ascii(int start_y, int start_x)
 {
-    // Elegant trophy ASCII art
     mvprintw(start_y, start_x, "       ___________      ");
     mvprintw(start_y + 1, start_x, "      '._==_==_=_.'     ");
     mvprintw(start_y + 2, start_x, "      .-\\:      /-.    ");
@@ -1256,12 +1255,12 @@ void open_weapon_window()
 
             wattron(weapon_win, COLOR_PAIR(has_weapon ? 10 : 11));
 
-            // Display weapon with its count
-            if (i == 1) // Dagger
+        
+            if (i == 1) 
                 mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.dagger_count);
-            else if (i == 2) // Magical Wand
+            else if (i == 2) 
                 mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.wand_count);
-            else if (i == 3) // Normal Arrow
+            else if (i == 3) 
                 mvwprintw(weapon_win, i + 2, 2, "%s (%d)", weapons[i], bag.arrow_count);
             else
                 mvwprintw(weapon_win, i + 2, 2, "%s", weapons[i]);
@@ -1482,7 +1481,7 @@ void create_final_room()
     }
 
     hero_x = center_x;
-    hero_y = center_y + 5; // Place a bit below center
+    hero_y = center_y + 5;
     map[hero_y][hero_x] = '@';
 
     draw_map();
@@ -3077,8 +3076,8 @@ void maps(char username[])
 
                     if (floors[current_floor].rooms[old_room].is_room_enchanted)
                     {
-                        // Revert to original music
-                        play_music(temp_track_index); // Original game music
+                        
+                        play_music(temp_track_index); 
                     }
 
                     if (floors[current_floor].rooms[old_room].is_room_nightmare)
@@ -3113,13 +3112,13 @@ void maps(char username[])
                 }
                 if (current_room != -1 && floors[current_floor].rooms[current_room].is_room_nightmare)
                 {
-                    if (current_track_index != 3) // Assuming the 3rd track is for nightmare rooms
+                    if (current_track_index != 3) 
                     {
                         if (current_track_index != 4 || current_track_index != 3)
                         {
                             temp_track_index = current_track_index;
                         }
-                        play_music(3); // Nightmare room music
+                        play_music(3);
                     }
 
                     Room room = floors[current_floor].rooms[current_room];
