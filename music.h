@@ -132,9 +132,9 @@ void draw_music_selector(int selected)
     boarder();
 
     attron(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
-    mvprintw(LINES / 4 - 3, COLS / 2 - 20, "╔══════════════════════════════╗");
-    mvprintw(LINES / 4 - 2, COLS / 2 - 20, "║    🎵 Music Selection 🎵     ║");
-    mvprintw(LINES / 4 - 1, COLS / 2 - 20, "╚══════════════════════════════╝");
+    mvprintw(LINES / 4 - 3, COLS / 2 - 16, "╔══════════════════════════════╗");
+    mvprintw(LINES / 4 - 2, COLS / 2 - 16, "║    🎵 Music Selection 🎵     ║");
+    mvprintw(LINES / 4 - 1, COLS / 2 - 16, "╚══════════════════════════════╝");
     attroff(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
 
     mvprintw(LINES / 4 + 1, COLS / 2 - 18, "┌─────────── Now Playing ───────────┐");
@@ -209,11 +209,10 @@ void music_selector()
 
 void music_setting(int from, char username[], int score)
 {
-    // Enable color support
     start_color();
-    init_pair(1, COLOR_CYAN, COLOR_BLACK);    // Header color
-    init_pair(2, COLOR_BLACK, COLOR_CYAN);    // Highlight color
-    init_pair(3, COLOR_MAGENTA, COLOR_BLACK); // Hint text color
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);    
+    init_pair(2, COLOR_BLACK, COLOR_CYAN);    
+    init_pair(3, COLOR_MAGENTA, COLOR_BLACK); 
 
     clear();
     boarder();
@@ -229,12 +228,10 @@ void music_setting(int from, char username[], int score)
 
     while (1)
     {
-        // Stylized header
         attron(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
         mvprintw(LINES / 4, COLS / 2 - 10, "♪ Music Settings ♪");
         attroff(COLOR_PAIR(1) | A_BOLD | A_UNDERLINE);
 
-        // Music info panel with unicode box
         mvprintw(LINES / 4 + 2, COLS / 2 - 17, "┌──────────────────────────────┐");
         mvprintw(LINES / 4 + 3, COLS / 2 - 17, "│ Current Volume: %-14d │",
                  (music_volume * 100) / MIX_MAX_VOLUME);
@@ -261,7 +258,6 @@ void music_setting(int from, char username[], int score)
 
         refresh();
 
-        // Existing navigation logic remains the same
         int ch = getch();
         switch (ch)
         {
@@ -272,7 +268,6 @@ void music_setting(int from, char username[], int score)
             selected = (selected == num_options - 1) ? 0 : selected + 1;
             break;
         case '\n':
-            // Existing action logic remains the same
             switch (selected)
             {
             case 0:

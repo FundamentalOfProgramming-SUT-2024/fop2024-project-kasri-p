@@ -60,12 +60,10 @@ void draw_color_menu(int current_selection)
 {
     clear();
 
-    // Create a more decorative border
     attron(A_BOLD);
     box(stdscr, 0, 0);
     attroff(A_BOLD);
 
-    // Initialize color pairs with more contrast
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_RED, COLOR_BLACK);
     init_pair(3, COLOR_GREEN, COLOR_BLACK);
@@ -73,7 +71,7 @@ void draw_color_menu(int current_selection)
     init_pair(5, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(6, COLOR_CYAN, COLOR_BLACK);
 
-    // Decorative title with a separator
+
     attron(A_BOLD | COLOR_PAIR(4));
     mvprintw(2, (COLS - 18) / 2, "HERO COLOR SELECT");
     mvhline(3, 2, ACS_BULLET, COLS - 4);
@@ -1339,17 +1337,15 @@ void signup_login()
     clear();
     boarder();
 
-    init_pair(1, COLOR_CYAN, COLOR_BLACK);  // Menu text color
-    init_pair(2, COLOR_GREEN, COLOR_BLACK); // Highlight color
-    init_pair(3, COLOR_BLUE, COLOR_BLACK);  // Border color
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);  
+    init_pair(2, COLOR_GREEN, COLOR_BLACK); 
+    init_pair(3, COLOR_BLUE, COLOR_BLACK); 
 
-    // Fancy title art
     const char *title_art[] = {
         "╔══════════════════════════════════════╗",
-        "║   🎮    Game Access Terminal   🎮    ║",
+        "║         Game Access Terminal         ║",
         "╚══════════════════════════════════════╝"};
 
-    // Draw title with color
     attron(COLOR_PAIR(3) | A_BOLD);
     for (int i = 0; i < 3; i++)
     {
@@ -1376,7 +1372,6 @@ void signup_login()
             mvprintw(LINES / 2 + i * 2, COLS / 2 - 10, "                ");
         }
 
-        // Draw menu with highlighting
         for (int i = 0; i < 4; i++)
         {
             if (i == choice)
@@ -1397,7 +1392,6 @@ void signup_login()
 
         refresh();
 
-        // Get user input
         int ch = getch();
         switch (ch)
         {
@@ -1407,7 +1401,7 @@ void signup_login()
         case KEY_DOWN:
             choice = (choice == 3) ? 0 : choice + 1;
             break;
-        case 10: // ENTER key
+        case 10: 
             switch (choice)
             {
             case 0:
@@ -1431,7 +1425,7 @@ void signup_login()
                 break;
             }
             break;
-        case 27: // ESC key
+        case 27: 
             clear();
             endwin();
             exit(0);
