@@ -25,8 +25,6 @@ time_t health_spell_end_time = 0;
 time_t damage_spell_end_time = 0;
 int last_dx = 0, last_dy = 0;
 
-
-
 void add_traps()
 {
     for (int f = 0; f < 4; f++)
@@ -141,7 +139,7 @@ void add_golds()
                 int dagger_y = floors[f].rooms[r].y + 1 + rand() % (floors[f].rooms[r].height - 2);
                 if (floors[f].map[dagger_y][dagger_x] == '.')
                 {
-                    floors[f].map[dagger_y][dagger_x] = '"'; 
+                    floors[f].map[dagger_y][dagger_x] = '"';
                 }
             }
 
@@ -185,11 +183,11 @@ void init_bag()
     bag.health_spells = 0;
     bag.speed_spells = 0;
 
-    bag.mace = true;
-    bag.magic_wand = true;
-    bag.sword = true;
-    bag.normal_arrow = true;
-    bag.dagger = true;
+    bag.mace = false;
+    bag.magic_wand = false;
+    bag.sword = false;
+    bag.normal_arrow = false;
+    bag.dagger = false;
 
     bag.wand_count = 0;
     bag.dagger_count = 0;
@@ -843,7 +841,8 @@ void draw_map()
                 char crown[] = "👑";
                 mvprintw(i, j - 1, "%s", crown);
             }
-            else if (map[i][j] == 's') {
+            else if (map[i][j] == 's')
+            {
                 char sword[] = "🔪";
                 mvprintw(i, j - 1, "%s", sword);
             }

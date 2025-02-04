@@ -2070,7 +2070,6 @@ void continue_game(char username[])
     while (1)
     {
         update_enemies();
-        bag.has_ancient_key = true;
         hit_damage();
         init_health(username);
         check_food_changing();
@@ -2640,7 +2639,6 @@ void maps(char username[])
     {
         check_food_changing();
         update_enemies();
-        bag.has_ancient_key = true;
         hit_damage();
         init_health(username);
         if (check_final_room_victory())
@@ -2853,7 +2851,8 @@ void maps(char username[])
                 pthread_create(&tid1, NULL, clear_msg, NULL);
                 pthread_detach(tid1);
             }
-            else if (temp_map[hero_y][hero_x] == 's') {
+            else if (temp_map[hero_y][hero_x] == 's')
+            {
                 bag.sword = true;
                 mvprintw(0, 2, "                    ");
                 mvprintw(0, 2, "Sword picked up!");
@@ -2940,7 +2939,7 @@ void maps(char username[])
             map[new_y][new_x] == '*' || map[new_y][new_x] == '@' ||
             map[new_y][new_x] == 'W' || map[new_y][new_x] == 'a' ||
             map[new_y][new_x] == 'A' || map[new_y][new_x] == 'd' ||
-            map[new_y][new_x] == '"' || map[new_y][new_x] == 'C' || 
+            map[new_y][new_x] == '"' || map[new_y][new_x] == 'C' ||
             map[new_y][new_x] == 's')
         {
             if (temp_map[new_y][new_x] == '$')
