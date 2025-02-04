@@ -238,7 +238,7 @@ void game_over(char username[])
     attroff(COLOR_PAIR(1) | A_BOLD);
 
     attron(COLOR_PAIR(3));
-    mvprintw(center_y + 8, center_x - 20, "Brave Adventurer: %s", username);
+    mvprintw(center_y + 8, center_x - 20, "Foul Tarnished: %s", username);
     attroff(COLOR_PAIR(3));
 
     // Final Score
@@ -248,7 +248,7 @@ void game_over(char username[])
 
     // Continue prompt
     attron(COLOR_PAIR(3));
-    mvprintw(center_y + 12, center_x - 20, "Press any key to continue your journey...");
+    mvprintw(center_y + 11, center_x - 20, "Press any key to continue your journey...");
     attroff(COLOR_PAIR(3));
 
     refresh();
