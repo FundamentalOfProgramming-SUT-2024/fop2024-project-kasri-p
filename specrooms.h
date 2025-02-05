@@ -30,6 +30,7 @@ char **temp_map;
 int WIDTH, HEIGHT;
 int num_rooms = 0;
 bool final_room = false;
+int games_played = 0;
 
 
 struct Enemy;

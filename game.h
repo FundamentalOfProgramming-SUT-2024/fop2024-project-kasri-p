@@ -3066,6 +3066,34 @@ void maps(char username[])
                         break;
                     }
                 }
+                if (current_room == 0 || current_room == 1)
+                {
+                    if (map[hero_y][hero_x + 1] == '=')
+                    {
+                        Room next_room = floors[current_floor].rooms[current_room + 1];
+                        for (int y = next_room.y; y < next_room.y + next_room.height; y++)
+                        {
+                            for (int x = next_room.x; x < next_room.x + next_room.width; x++)
+                            {
+                                discovered_map[y][x] = 1;
+                            }
+                        }
+                    }
+                }
+                else if (current_room == 3 || current_room == 4)
+                {
+                    if (map[hero_y][hero_x - 1] == '=')
+                    {
+                        Room next_room = floors[current_floor].rooms[current_room + 1];
+                        for (int y = next_room.y; y < next_room.y + next_room.height; y++)
+                        {
+                            for (int x = next_room.x; x < next_room.x + next_room.width; x++)
+                            {
+                                discovered_map[y][x] = 1;
+                            }
+                        }
+                    }
+                }
                 if (floors[current_floor].rooms[current_room].is_room_enchanted)
                 {
                     health -= 1;

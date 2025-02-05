@@ -1,6 +1,8 @@
 #include "game.h"
 #include <sqlite3.h>
 
+void signup_login();
+
 void initialize_database()
 {
     sqlite3 *db;
@@ -29,9 +31,6 @@ void initialize_database()
 
     sqlite3_close(db);
 }
-
-
-void signup_login();
 
 void enemies_info()
 {
@@ -249,15 +248,30 @@ void profile_page(char current_username[])
         fclose(scores);
     }
 
+    char save_path[256];
+    sprintf(save_path, "%s_save.dat", current_username);
+
+    FILE *save_file = fopen(save_path, "rb");
+    if (save_file != NULL)
+    {
+        SaveMetadata metadata;
+        fread(&metadata, sizeof(SaveMetadata), 1, save_file);
+        fclose(save_file);
+
+        char time_str[100];
+        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&metadata.save_time));
+
+        mvprintw(LINES / 3 + 8, COLS / 3 + 2, "Last login: %s", time_str);
+    }
+
+
     mvprintw(LINES / 4, COLS / 2 - 7, "PLAYER PROFILE");
 
     mvprintw(LINES / 3, COLS / 3, "Username: %s", current_username);
     mvprintw(LINES / 3 + 2, COLS / 3, "Email: %s", email);
     mvprintw(LINES / 3 + 4, COLS / 3, "Score: %s", score);
-
-    mvprintw(LINES / 3 + 6, COLS / 3 + 2, "Games Played: --");
+    mvprintw(LINES / 3 + 6, COLS / 3 + 2, "Games Played: %d", games_played);
     mvprintw(LINES / 3 + 7, COLS / 3 + 2, "Highest Score: %s", score);
-
     mvprintw(LINES - 2, COLS / 2 - 11, "Press ESC to return to menu");
 
     refresh();
@@ -329,6 +343,10 @@ void leader_board(int from_game, char username[], int hero_x, int hero_y, int sc
     }
 
     keypad(stdscr, TRUE);
+    start_color();
+    init_pair(1, COLOR_YELLOW, COLOR_BLACK); // For Elden Lord
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);  // For GOAT
+    init_pair(3, COLOR_BLUE, COLOR_BLACK);   // For Tarnished
 
     int scroll_bar_height = VISIBLE_ENTRIES;
     int max_scroll = (num_entries > VISIBLE_ENTRIES) ? num_entries - VISIBLE_ENTRIES : 0;
@@ -351,13 +369,26 @@ void leader_board(int from_game, char username[], int hero_x, int hero_y, int sc
         {
             int rank = i + current_position + 1;
             char medal[20] = "  ";
+            char title[20] = "";
 
             if (rank == 1)
-                strcpy(medal, "(goat) 🥇");
+            {
+                strcpy(medal, "🥇");
+                attron(COLOR_PAIR(1));
+                strcpy(title, "Elden Lord");
+            }
             else if (rank == 2)
-                strcpy(medal, "(pro)🥈");
+            {
+                strcpy(medal, "🥈");
+                attron(COLOR_PAIR(2));
+                strcpy(title, "GOAT");
+            }
             else if (rank == 3)
-                strcpy(medal, "(tarnished)🥉");
+            {
+                strcpy(medal, "🥉");
+                attron(COLOR_PAIR(3));
+                strcpy(title, "Tarnished");
+            }
 
             bool is_current_user = (strcmp(leaderboard[i + current_position].username, username) == 0);
 
@@ -374,11 +405,15 @@ void leader_board(int from_game, char username[], int hero_x, int hero_y, int sc
             {
                 mvprintw(START_Y + 3 + i, START_X - 2, " ");
             }
-            mvprintw(START_Y + 3 + i, START_X, "│ %-4d │ %-14s %s│ %-7d │",
+
+            mvprintw(START_Y + 3 + i, START_X, "│ %-4d │ %-14s %s│ %-7d │ %s",
                      rank,
                      leaderboard[i + current_position].username, medal,
-                     leaderboard[i + current_position].score);
+                     leaderboard[i + current_position].score,
+                     title);
 
+            if (rank <= 3)
+                attroff(COLOR_PAIR(rank));
             if (is_current_user)
                 attroff(A_BOLD);
             if (i + current_position == selected_index)
@@ -904,7 +939,6 @@ void boarder()
     mvprintw(LINES - 2, COLS - 2, "╝");
 }
 
-// This function is proggramed to login an existing user into the game
 void login_page()
 {
     clear();
@@ -1068,7 +1102,6 @@ void save_user(user usr)
     sqlite3_close(db);
 }
 
-// This function is proggramed to generate a random password
 char *rand_pass()
 {
     const char upper[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
