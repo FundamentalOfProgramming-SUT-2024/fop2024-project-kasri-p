@@ -183,7 +183,7 @@ void init_bag()
     bag.health_spells = 0;
     bag.speed_spells = 0;
 
-    bag.mace = false;
+    bag.mace = true;
     bag.magic_wand = false;
     bag.sword = false;
     bag.normal_arrow = false;
