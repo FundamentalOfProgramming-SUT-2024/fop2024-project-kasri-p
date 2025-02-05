@@ -2611,14 +2611,17 @@ void maps(char username[])
     {
         for (int j = 0; j < WIDTH; j++)
         {
-            temp_map[i][j] = floors[current_floor].temp_map[i][j];
+            temp_map[i][j] = map[i][j];
         }
     }
     for (int i = 0; i < HEIGHT; i++)
     {
         for (int j = 0; j < WIDTH; j++)
         {
-            temp_map[i][j] = map[i][j];
+            if (floors[current_floor].temp_map[i][j] == '?')
+            {
+                temp_map[i][j] = floors[current_floor].temp_map[i][j];
+            }
         }
     }
     srand(time(NULL));
