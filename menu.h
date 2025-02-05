@@ -1,4 +1,35 @@
 #include "game.h"
+#include <sqlite3.h>
+
+void initialize_database()
+{
+    sqlite3 *db;
+    char *err_msg = 0;
+    int rc = sqlite3_open("users.db", &db);
+
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return;
+    }
+
+    const char *sql = "CREATE TABLE IF NOT EXISTS Users ("
+                      "Username TEXT PRIMARY KEY, "
+                      "Password TEXT NOT NULL, "
+                      "Email TEXT NOT NULL);";
+
+    rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+
+    sqlite3_close(db);
+}
+
 
 void signup_login();
 
@@ -319,14 +350,14 @@ void leader_board(int from_game, char username[], int hero_x, int hero_y, int sc
         for (int i = 0; i < VISIBLE_ENTRIES && (i + current_position) < num_entries; i++)
         {
             int rank = i + current_position + 1;
-            char medal[5] = "  ";
+            char medal[20] = "  ";
 
             if (rank == 1)
-                strcpy(medal, "🥇");
+                strcpy(medal, "(goat) 🥇");
             else if (rank == 2)
-                strcpy(medal, "🥈");
+                strcpy(medal, "(pro)🥈");
             else if (rank == 3)
-                strcpy(medal, "🥉");
+                strcpy(medal, "(tarnished)🥉");
 
             bool is_current_user = (strcmp(leaderboard[i + current_position].username, username) == 0);
 
@@ -736,13 +767,21 @@ void print_email_error();
 void forgot_pass_page()
 {
     boarder();
-    FILE *users = fopen("usr.text", "r");
+    sqlite3 *db;
+    char *err_msg = 0;
+    int rc = sqlite3_open("users.db", &db);
+
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return;
+    }
 
     const char *forgot_options[] = {"username:", "email:", "show password"};
     char username[100] = {0};
     char email[100] = {0};
     int option = 0;
-    user user;
     bool found = false;
 
     while (1)
@@ -758,7 +797,7 @@ void forgot_pass_page()
         {
             if (i == option)
                 attron(A_REVERSE);
-            mvprintw(LINES / 2 + i * 3, COLS / 2 - strlen(forgot_options[i]) / 2, "%s", forgot_options[i]); // Adjust spacing with i * 3
+            mvprintw(LINES / 2 + i * 3, COLS / 2 - strlen(forgot_options[i]) / 2, "%s", forgot_options[i]);
             if (i == option)
                 attroff(A_REVERSE);
 
@@ -772,7 +811,7 @@ void forgot_pass_page()
         int ch = getch();
         if (ch == 27)
         {
-            fclose(users);
+            sqlite3_close(db);
             login_page();
             return;
         }
@@ -799,21 +838,32 @@ void forgot_pass_page()
             }
             else if (option == 2)
             {
-                rewind(users);
-                found = false;
-                while (fscanf(users, "%s %s %s", user.usrname, user.pass, user.email) != EOF)
+                char *sql = sqlite3_mprintf(
+                    "SELECT Password FROM Users WHERE Username = '%q' AND Email = '%q';",
+                    username, email);
+
+                char *password = NULL;
+                sqlite3_stmt *stmt;
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+                if (rc == SQLITE_OK)
                 {
-                    if (!strcmp(user.usrname, username) && !strcmp(user.email, email))
+                    if (sqlite3_step(stmt) == SQLITE_ROW)
                     {
                         found = true;
+                        const char *pwd = (const char *)sqlite3_column_text(stmt, 0);
+
                         init_pair(2, COLOR_BLUE, COLOR_BLACK);
                         attron(COLOR_PAIR(2) | A_BOLD);
                         mvprintw(LINES / 2 + 10, COLS / 2 - strlen("Your password is: ") / 2,
-                                 "Your password is: %s", user.pass);
+                                 "Your password is: %s", pwd);
                         attroff(COLOR_PAIR(2) | A_BOLD);
-                        break;
                     }
                 }
+
+                sqlite3_finalize(stmt);
+                sqlite3_free(sql);
+
                 if (!found)
                 {
                     init_pair(1, COLOR_WHITE, COLOR_RED);
@@ -831,6 +881,7 @@ void forgot_pass_page()
         }
     }
 }
+
 void signup_login();
 
 void boarder()
@@ -935,7 +986,7 @@ void login_page()
             {
                 forgot_pass_page();
             }
-            else if (option == 3)
+            if (option == 3)
             {
                 if (strlen(usrname) == 0 || strlen(password) == 0)
                 {
@@ -944,24 +995,34 @@ void login_page()
                     continue;
                 }
 
-                FILE *users = fopen("usr.text", "r");
-                user user;
-                int login_success = 0;
+                sqlite3 *db;
+                int rc = sqlite3_open("users.db", &db);
 
-                while (fscanf(users, "%s %s %s", user.usrname, user.pass, user.email) != EOF)
+                if (rc != SQLITE_OK)
                 {
-                    if (!strcmp(user.usrname, usrname) && !strcmp(user.pass, password))
-                    {
-                        login_success = 1;
-                        break;
-                    }
+                    fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+                    sqlite3_close(db);
+                    return;
                 }
 
-                fclose(users);
+                char sql[256];
+                snprintf(sql, sizeof(sql), "SELECT * FROM Users WHERE Username = '%s' AND Password = '%s';", usrname, password);
 
-                if (login_success)
+                sqlite3_stmt *stmt;
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+                if (rc != SQLITE_OK)
+                {
+                    fprintf(stderr, "Failed to fetch data: %s\n", sqlite3_errmsg(db));
+                    sqlite3_close(db);
+                    return;
+                }
+
+                if (sqlite3_step(stmt) == SQLITE_ROW)
                 {
                     pre_game_menu(usrname);
+                    sqlite3_finalize(stmt);
+                    sqlite3_close(db);
                     return;
                 }
                 else
@@ -971,6 +1032,9 @@ void login_page()
                     memset(usrname, 0, sizeof(usrname));
                     memset(password, 0, sizeof(password));
                 }
+
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
             }
         }
     }
@@ -978,9 +1042,30 @@ void login_page()
 
 void save_user(user usr)
 {
-    FILE *users = fopen("usr.text", "a");
-    fprintf(users, "%s %s %s\n", usr.usrname, usr.pass, usr.email);
-    fclose(users);
+    sqlite3 *db;
+    char *err_msg = 0;
+    int rc = sqlite3_open("users.db", &db);
+
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return;
+    }
+
+    char sql[256];
+    snprintf(sql, sizeof(sql), "INSERT INTO Users (Username, Password, Email) VALUES ('%s', '%s', '%s');",
+             usr.usrname, usr.pass, usr.email);
+
+    rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+
+    sqlite3_close(db);
 }
 
 // This function is proggramed to generate a random password
@@ -1247,19 +1332,44 @@ void sign_up_page()
                 curs_set(TRUE);
                 move(LINES / 2 - 6, COLS / 2 + strlen(sign_up_options[0]) / 2 + 1);
                 getstr(new_usr.usrname);
-                rewind(users);
-                usrname_check = 1;
 
-                while (fscanf(users, "%s %s %s", user.usrname, user.pass, user.email) != EOF)
+                sqlite3 *db;
+                int rc = sqlite3_open("users.db", &db);
+
+                if (rc != SQLITE_OK)
                 {
-                    if (strcmp(new_usr.usrname, user.usrname) == 0)
-                    {
-                        clear_error();
-                        mvprintw(LINES - 3, COLS / 2 - 11, "Username already taken!");
-                        usrname_check = 0;
-                        break;
-                    }
+                    fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+                    sqlite3_close(db);
+                    return;
                 }
+
+                char sql[256];
+                snprintf(sql, sizeof(sql), "SELECT * FROM Users WHERE Username = '%s';", new_usr.usrname);
+
+                sqlite3_stmt *stmt;
+                rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+                if (rc != SQLITE_OK)
+                {
+                    fprintf(stderr, "Failed to fetch data: %s\n", sqlite3_errmsg(db));
+                    sqlite3_close(db);
+                    return;
+                }
+
+                if (sqlite3_step(stmt) == SQLITE_ROW)
+                {
+                    clear_error();
+                    mvprintw(LINES - 3, COLS / 2 - 11, "Username already taken!");
+                    usrname_check = 0;
+                }
+                else
+                {
+                    usrname_check = 1;
+                }
+
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
+
                 if (usrname_check)
                 {
                     clear_error();

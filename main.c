@@ -87,7 +87,7 @@ int main()
 	start_color();
 	noecho();
 	curs_set(0);
-
+	initialize_database();
 	init_pair(1, COLOR_RED, COLOR_BLACK);
 	init_pair(3, COLOR_WHITE, COLOR_BLACK);
 

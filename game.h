@@ -1425,7 +1425,7 @@ void create_final_room()
     int center_x = start_x + (room_width / 2);
     int center_y = start_y + (room_height / 2);
 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 4; i++)
     {
         Enemy *e = calloc(1, sizeof(Enemy));
         if (e == NULL)

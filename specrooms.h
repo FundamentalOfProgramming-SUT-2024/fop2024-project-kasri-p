@@ -131,7 +131,6 @@ typedef struct Enemy
 Enemy *enemies[5][MAX_ENEMIES_PER_FLOOR];
 
 
-// A chance that Undead becomes alive again
 void undead_ability(Enemy *e)
 {
     if (e->health <= 0 && rand() % 100 < 30)
